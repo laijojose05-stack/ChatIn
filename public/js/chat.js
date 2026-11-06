@@ -1,9 +1,10 @@
-// ChatIn Real-Time Chat Engine
-(function () {
+// ChatIn Real-Time Chat Engine (Robust & Safe)
+document.addEventListener('DOMContentLoaded', () => {
   const currentUser = window.CURRENT_USER || {};
   let socket = null;
   let activeConversation = null;
   let conversations = [];
+  let currentFilter = 'all';
   let pendingAttachment = null;
   let typingTimeout = null;
 
@@ -23,6 +24,7 @@
   const typingIndicator = document.getElementById('typingIndicator');
   const mobileBackBtn = document.getElementById('mobileBackBtn');
   const chatApp = document.getElementById('chatApp');
+  const conversationSearchInput = document.getElementById('conversationSearchInput');
 
   // Modals & Popovers
   const openNewChatBtn = document.getElementById('openNewChatBtn');
@@ -43,8 +45,19 @@
   const attachmentName = document.getElementById('attachmentName');
   const removeAttachmentBtn = document.getElementById('removeAttachmentBtn');
 
+  // Safe Modal Helper
+  function getModal(el) {
+    if (!el || typeof bootstrap === 'undefined') return null;
+    return bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(el) : new bootstrap.Modal(el);
+  }
+
   // 1. Initialize Socket.IO
   function initSocket() {
+    if (typeof io === 'undefined') {
+      console.warn('Socket.IO script not loaded');
+      return;
+    }
+
     const token = localStorage.getItem('chatin_token');
     socket = io({
       auth: { token },
@@ -54,7 +67,7 @@
     });
 
     socket.on('connect', () => {
-      console.log('⚡ Socket connected:', socket.id);
+      console.log('⚡ Socket connected successfully:', socket.id);
       if (statusDot) {
         statusDot.classList.add('connected');
         statusDot.title = 'Connected to real-time stream';
@@ -77,7 +90,7 @@
     });
 
     // Message read receipts
-    socket.on('message_read', ({ messageId, readBy, conversationId }) => {
+    socket.on('message_read', ({ messageId, conversationId }) => {
       if (activeConversation && activeConversation._id === conversationId) {
         const tick = document.getElementById(`tick-${messageId}`);
         if (tick) {
@@ -89,14 +102,17 @@
     // Typing indicators
     socket.on('user_typing', ({ userId, username, conversationId }) => {
       if (activeConversation && activeConversation._id === conversationId && userId !== currentUser._id) {
-        typingIndicator.classList.remove('d-none');
-        typingIndicator.querySelector('.typing-text').textContent = `${username} is typing...`;
+        if (typingIndicator) {
+          typingIndicator.classList.remove('d-none');
+          const tText = typingIndicator.querySelector('.typing-text');
+          if (tText) tText.textContent = `${username} is typing...`;
+        }
       }
     });
 
     socket.on('user_stop_typing', ({ conversationId }) => {
       if (activeConversation && activeConversation._id === conversationId) {
-        typingIndicator.classList.add('d-none');
+        if (typingIndicator) typingIndicator.classList.add('d-none');
       }
     });
 
@@ -117,23 +133,58 @@
       const data = await res.json();
       if (data.success) {
         conversations = data.data || [];
-        renderConversations(conversations);
+        renderFilteredConversations();
+      } else {
+        renderEmptyConversations();
       }
     } catch (err) {
       console.error('Failed to load conversations:', err);
+      renderEmptyConversations();
     } finally {
       if (conversationsLoading) conversationsLoading.classList.add('d-none');
     }
   }
 
-  function renderConversations(list) {
+  function renderEmptyConversations() {
     if (!conversationsList) return;
+    conversationsList.innerHTML = `
+      <div class="text-center text-muted small py-5 px-3">
+        <i class="bi bi-chat-square-text fs-2 d-block mb-2 text-secondary opacity-50"></i>
+        No conversations yet.<br>Click <strong>+</strong> above to start messaging!
+      </div>
+    `;
+  }
+
+  function renderFilteredConversations() {
+    if (!conversationsList) return;
+
+    let list = [...conversations];
+    const searchQuery = conversationSearchInput ? conversationSearchInput.value.trim().toLowerCase() : '';
+
+    // Apply Filter Tab
+    if (currentFilter === 'direct') {
+      list = list.filter((c) => !c.isGroup);
+    } else if (currentFilter === 'group') {
+      list = list.filter((c) => c.isGroup);
+    } else if (currentFilter === 'unread') {
+      list = list.filter((c) => (c.unreadCount || 0) > 0);
+    }
+
+    // Apply Search Query
+    if (searchQuery) {
+      list = list.filter((c) => {
+        const otherUser = getOtherParticipant(c);
+        const title = c.isGroup ? c.groupName : (otherUser ? otherUser.username : '');
+        return title.toLowerCase().includes(searchQuery);
+      });
+    }
+
     conversationsList.innerHTML = '';
 
     if (list.length === 0) {
       conversationsList.innerHTML = `
-        <div class="text-center text-muted small py-5 px-3">
-          No conversations yet.<br>Click <strong>+</strong> above to start messaging!
+        <div class="text-center text-muted small py-4 px-3">
+          ${searchQuery ? 'No matching conversations.' : 'No conversations in this section.'}
         </div>
       `;
       return;
@@ -152,6 +203,10 @@
       const item = document.createElement('div');
       item.className = `conv-item ${isActive ? 'active' : ''}`;
       item.dataset.id = conv._id;
+      if (otherUser && !conv.isGroup) {
+        item.dataset.userId = otherUser._id || otherUser;
+      }
+
       item.innerHTML = `
         <div class="conv-avatar-box">
           <div class="conv-avatar">${initials}</div>
@@ -174,10 +229,27 @@
     });
   }
 
-  // 3. Select Conversation & Load Messages
+  // 3. Filter Tabs Listener
+  document.querySelectorAll('.filter-pill').forEach((pill) => {
+    pill.addEventListener('click', (e) => {
+      document.querySelectorAll('.filter-pill').forEach((p) => p.classList.remove('active'));
+      e.target.classList.add('active');
+      currentFilter = e.target.dataset.filter || 'all';
+      renderFilteredConversations();
+    });
+  });
+
+  // Search Conversations Input
+  if (conversationSearchInput) {
+    conversationSearchInput.addEventListener('input', () => {
+      renderFilteredConversations();
+    });
+  }
+
+  // 4. Select Conversation & Load Messages
   async function selectConversation(conv) {
     activeConversation = conv;
-    chatApp.classList.add('chat-active');
+    if (chatApp) chatApp.classList.add('chat-active');
 
     // Update active highlight in sidebar
     document.querySelectorAll('.conv-item').forEach((el) => {
@@ -189,42 +261,71 @@
     if (unreadEl) unreadEl.remove();
 
     // Show active chat wrapper
-    emptyChatState.classList.add('d-none');
-    activeChatWrapper.classList.remove('d-none');
-    activeChatWrapper.classList.add('d-flex');
+    if (emptyChatState) emptyChatState.classList.add('d-none');
+    if (activeChatWrapper) {
+      activeChatWrapper.classList.remove('d-none');
+      activeChatWrapper.classList.add('d-flex');
+    }
 
     // Update Header
     const otherUser = getOtherParticipant(conv);
     const title = conv.isGroup ? conv.groupName : (otherUser ? otherUser.username : 'Unknown');
-    activeChatName.textContent = title;
-    activeChatAvatar.textContent = title.substring(0, 2).toUpperCase();
+    if (activeChatName) activeChatName.textContent = title;
+    if (activeChatAvatar) activeChatAvatar.textContent = title.substring(0, 2).toUpperCase();
 
-    if (conv.isGroup) {
-      activeChatStatus.textContent = `${conv.participants?.length || 0} members`;
-    } else if (otherUser) {
-      activeChatStatus.textContent = otherUser.isOnline ? 'Active now' : 'Offline';
+    if (activeChatStatus) {
+      if (conv.isGroup) {
+        activeChatStatus.textContent = `${conv.participants?.length || 0} members`;
+      } else if (otherUser) {
+        activeChatStatus.textContent = otherUser.isOnline ? 'Active now' : 'Offline';
+      }
     }
 
-    // Join room
-    socket.emit('join_conversation', conv._id);
+    // Join socket room
+    if (socket && socket.connected) {
+      socket.emit('join_conversation', conv._id);
+    }
 
     // Fetch messages
-    messagesStream.innerHTML = '<div class="text-center py-4 text-muted small">Loading messages...</div>';
+    if (messagesStream) {
+      messagesStream.innerHTML = `
+        <div class="text-center py-5 text-muted small">
+          <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+          <div>Loading conversation history...</div>
+        </div>
+      `;
+    }
+
     try {
       const res = await fetch(`/api/messages/${conv._id}`);
       const data = await res.json();
       if (data.success) {
         renderMessages(data.data || []);
-        // Emit read receipt
-        socket.emit('read_message', { conversationId: conv._id });
+        if (socket && socket.connected) {
+          socket.emit('read_message', { conversationId: conv._id });
+        }
       }
     } catch (err) {
-      messagesStream.innerHTML = '<div class="text-center py-4 text-danger small">Failed to load messages</div>';
+      if (messagesStream) {
+        messagesStream.innerHTML = '<div class="text-center py-4 text-danger small">Failed to load messages</div>';
+      }
     }
   }
 
   function renderMessages(messages) {
+    if (!messagesStream) return;
     messagesStream.innerHTML = '';
+
+    if (messages.length === 0) {
+      messagesStream.innerHTML = `
+        <div class="text-center text-muted small py-5">
+          <div class="fw-semibold mb-1">No messages yet.</div>
+          <div class="extra-small">Send a message below to start the conversation!</div>
+        </div>
+      `;
+      return;
+    }
+
     messages.forEach((msg) => {
       appendMessageToView(msg);
     });
@@ -232,9 +333,10 @@
   }
 
   function appendMessageToView(msg) {
+    if (!messagesStream) return;
     const isMine = msg.sender?._id === currentUser._id || msg.sender === currentUser._id;
     const time = formatTimestamp(msg.createdAt);
-    const senderName = !isMine && activeConversation.isGroup && msg.sender?.username ? msg.sender.username : '';
+    const senderName = !isMine && activeConversation?.isGroup && msg.sender?.username ? msg.sender.username : '';
 
     const row = document.createElement('div');
     row.className = `message-row ${isMine ? 'sent' : 'received'}`;
@@ -248,7 +350,7 @@
         attachmentHtml = `<img src="${att.fileUrl}" class="msg-img-attachment" alt="Photo" onclick="window.open('${att.fileUrl}', '_blank')">`;
       } else {
         attachmentHtml = `
-          <a href="${att.fileUrl}" target="_blank" class="attachment-file-box d-flex align-items-center gap-2 p-2 mb-2 rounded bg-black-50 text-white text-decoration-none">
+          <a href="${att.fileUrl}" target="_blank" class="d-flex align-items-center gap-2 p-2 mb-2 rounded bg-black bg-opacity-25 text-white text-decoration-none">
             <i class="bi bi-file-earmark-arrow-down fs-5"></i>
             <span class="small text-truncate">${escapeHtml(att.fileName || 'Download attachment')}</span>
           </a>
@@ -278,11 +380,11 @@
     messagesStream.appendChild(row);
   }
 
-  // 4. Send Message Handler
+  // 5. Send Message Handler
   if (messageForm) {
     messageForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const text = messageInput.value.trim();
+      const text = messageInput ? messageInput.value.trim() : '';
       if (!text && !pendingAttachment) return;
       if (!activeConversation) return;
 
@@ -292,10 +394,11 @@
         attachments: pendingAttachment ? [pendingAttachment] : [],
       };
 
-      // Clear input & pending
-      messageInput.value = '';
+      if (messageInput) messageInput.value = '';
       clearPendingAttachment();
-      socket.emit('stop_typing', { conversationId: activeConversation._id });
+      if (socket && socket.connected) {
+        socket.emit('stop_typing', { conversationId: activeConversation._id });
+      }
 
       try {
         const res = await fetch('/api/messages', {
@@ -321,7 +424,9 @@
     if (activeConversation && activeConversation._id === msg.conversationId) {
       appendMessageToView(msg);
       scrollToBottom();
-      socket.emit('read_message', { conversationId: activeConversation._id });
+      if (socket && socket.connected) {
+        socket.emit('read_message', { conversationId: activeConversation._id });
+      }
     }
     updateSidebarSnippet(msg.conversationId, msg.content);
   }
@@ -331,17 +436,16 @@
     if (item) {
       const snippet = item.querySelector('.conv-snippet');
       if (snippet) snippet.textContent = content;
-      // Bump to top
       item.parentElement.prepend(item);
     } else {
       loadConversations();
     }
   }
 
-  // 5. Typing Indicators
+  // 6. Typing Indicators
   if (messageInput) {
     messageInput.addEventListener('input', () => {
-      if (!activeConversation) return;
+      if (!activeConversation || !socket || !socket.connected) return;
       socket.emit('typing', { conversationId: activeConversation._id });
       clearTimeout(typingTimeout);
       typingTimeout = setTimeout(() => {
@@ -350,15 +454,15 @@
     });
   }
 
-  // 6. Mobile Back Button
+  // 7. Mobile Back Button
   if (mobileBackBtn) {
     mobileBackBtn.addEventListener('click', () => {
-      chatApp.classList.remove('chat-active');
+      if (chatApp) chatApp.classList.remove('chat-active');
       activeConversation = null;
     });
   }
 
-  // 7. Attachments Upload
+  // 8. Attachments Upload
   if (fileInput) {
     fileInput.addEventListener('change', async (e) => {
       const file = e.target.files[0];
@@ -375,9 +479,11 @@
         const data = await res.json();
         if (data.success) {
           pendingAttachment = data.data;
-          attachmentName.textContent = file.name;
-          attachmentPreview.classList.remove('d-none');
-          attachmentPreview.classList.add('d-flex');
+          if (attachmentName) attachmentName.textContent = file.name;
+          if (attachmentPreview) {
+            attachmentPreview.classList.remove('d-none');
+            attachmentPreview.classList.add('d-flex');
+          }
         }
       } catch (err) {
         alert('File upload failed.');
@@ -398,7 +504,7 @@
     }
   }
 
-  // 8. Emoji Picker Setup
+  // 9. Emoji Picker Setup
   const emojis = {
     smileys: ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '😉', '😌', '😍', '🥰', '😘', '😋', '😜', '😎', '🥳'],
     gestures: ['👍', '👎', '👏', '🙌', '🤝', '✌️', '🤞', '👊', '👋', '🤙', '🙏', '💪', '👌', '👈', '👉', '👆', '👇'],
@@ -414,8 +520,10 @@
       span.className = 'emoji-item';
       span.textContent = emoji;
       span.addEventListener('click', () => {
-        messageInput.value += emoji;
-        messageInput.focus();
+        if (messageInput) {
+          messageInput.value += emoji;
+          messageInput.focus();
+        }
       });
       emojiGrid.appendChild(span);
     });
@@ -438,76 +546,90 @@
     });
   }
 
-  // 9. Modals: New Chat & User Search
+  // 10. Modals: New Chat & User Search
   if (openNewChatBtn && newChatModalEl) {
-    const modal = new bootstrap.Modal(newChatModalEl);
-    openNewChatBtn.addEventListener('click', () => modal.show());
-    if (emptyNewChatBtn) emptyNewChatBtn.addEventListener('click', () => modal.show());
+    const showChatModal = () => {
+      const modal = getModal(newChatModalEl);
+      if (modal) modal.show();
+    };
+
+    openNewChatBtn.addEventListener('click', showChatModal);
+    if (emptyNewChatBtn) emptyNewChatBtn.addEventListener('click', showChatModal);
 
     let searchTimeout;
-    userSearchModalInput.addEventListener('input', (e) => {
-      clearTimeout(searchTimeout);
-      const q = e.target.value.trim();
-      if (!q) {
-        userSearchResults.innerHTML = '<div class="text-center text-muted small py-4">Search by username to begin chatting.</div>';
-        return;
-      }
-
-      searchTimeout = setTimeout(async () => {
-        userSearchResults.innerHTML = '<div class="text-center text-muted small py-4">Searching...</div>';
-        try {
-          const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`);
-          const data = await res.json();
-          if (data.success && data.data.length > 0) {
-            userSearchResults.innerHTML = '';
-            data.data.forEach((u) => {
-              if (u._id === currentUser._id) return;
-              const row = document.createElement('div');
-              row.className = 'd-flex align-items-center justify-content-between p-2 rounded hover-bg cursor-pointer';
-              row.innerHTML = `
-                <div class="d-flex align-items-center gap-2">
-                  <div class="user-avatar-circle" style="width:32px;height:32px;font-size:0.75rem;">
-                    ${u.username.substring(0, 2).toUpperCase()}
-                  </div>
-                  <div>
-                    <div class="fw-semibold small">${escapeHtml(u.username)}</div>
-                    <div class="text-muted extra-small">${escapeHtml(u.email)}</div>
-                  </div>
-                </div>
-                <button class="btn btn-sm btn-primary rounded-pill px-3">Chat</button>
-              `;
-
-              row.addEventListener('click', async () => {
-                modal.hide();
-                const createRes = await fetch('/api/conversations', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ recipientId: u._id }),
-                });
-                const createData = await createRes.json();
-                if (createData.success) {
-                  await loadConversations();
-                  selectConversation(createData.data);
-                }
-              });
-              userSearchResults.appendChild(row);
-            });
-          } else {
-            userSearchResults.innerHTML = '<div class="text-center text-muted small py-4">No users found.</div>';
+    if (userSearchModalInput) {
+      userSearchModalInput.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        const q = e.target.value.trim();
+        if (!q) {
+          if (userSearchResults) {
+            userSearchResults.innerHTML = '<div class="text-center text-muted small py-4">Search by username to begin chatting.</div>';
           }
-        } catch (err) {
-          userSearchResults.innerHTML = '<div class="text-center text-danger small py-4">Search failed.</div>';
+          return;
         }
-      }, 300);
-    });
+
+        searchTimeout = setTimeout(async () => {
+          if (userSearchResults) {
+            userSearchResults.innerHTML = '<div class="text-center text-muted small py-4">Searching...</div>';
+          }
+          try {
+            const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`);
+            const data = await res.json();
+            if (data.success && data.data.length > 0 && userSearchResults) {
+              userSearchResults.innerHTML = '';
+              data.data.forEach((u) => {
+                if (u._id === currentUser._id) return;
+                const row = document.createElement('div');
+                row.className = 'd-flex align-items-center justify-content-between p-2 rounded hover-bg cursor-pointer';
+                row.innerHTML = `
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="user-avatar-circle" style="width:34px;height:34px;font-size:0.8rem;">
+                      ${u.username.substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <div class="fw-semibold small">${escapeHtml(u.username)}</div>
+                      <div class="text-muted extra-small">${escapeHtml(u.email)}</div>
+                    </div>
+                  </div>
+                  <button class="btn btn-sm chatin-btn-gradient rounded-pill px-3">Chat</button>
+                `;
+
+                row.addEventListener('click', async () => {
+                  const modal = getModal(newChatModalEl);
+                  if (modal) modal.hide();
+
+                  const createRes = await fetch('/api/conversations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ recipientId: u._id }),
+                  });
+                  const createData = await createRes.json();
+                  if (createData.success) {
+                    await loadConversations();
+                    selectConversation(createData.data);
+                  }
+                });
+                userSearchResults.appendChild(row);
+              });
+            } else if (userSearchResults) {
+              userSearchResults.innerHTML = '<div class="text-center text-muted small py-4">No users found.</div>';
+            }
+          } catch (err) {
+            if (userSearchResults) {
+              userSearchResults.innerHTML = '<div class="text-center text-danger small py-4">Search failed.</div>';
+            }
+          }
+        }, 300);
+      });
+    }
   }
 
-  // 10. Modals: Create Group
+  // 11. Modals: Create Group
   if (openNewGroupBtn && newGroupModalEl) {
-    const modal = new bootstrap.Modal(newGroupModalEl);
     openNewGroupBtn.addEventListener('click', async () => {
-      modal.show();
-      // Load user list for group
+      const modal = getModal(newGroupModalEl);
+      if (modal) modal.show();
+
       try {
         const res = await fetch('/api/users/search?q=');
         const data = await res.json();
@@ -530,8 +652,10 @@
     if (createGroupForm) {
       createGroupForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const name = document.getElementById('groupNameInput').value.trim();
-        const desc = document.getElementById('groupDescInput').value.trim();
+        const nameInput = document.getElementById('groupNameInput');
+        const descInput = document.getElementById('groupDescInput');
+        const name = nameInput ? nameInput.value.trim() : '';
+        const desc = descInput ? descInput.value.trim() : '';
         const checked = Array.from(document.querySelectorAll('input[name="members"]:checked')).map((i) => i.value);
 
         if (!name) return;
@@ -544,7 +668,8 @@
           });
           const data = await res.json();
           if (data.success) {
-            modal.hide();
+            const modal = getModal(newGroupModalEl);
+            if (modal) modal.hide();
             await loadConversations();
             selectConversation(data.data);
           }
@@ -568,7 +693,7 @@
     }
     if (activeConversation && !activeConversation.isGroup) {
       const other = getOtherParticipant(activeConversation);
-      if (other && (other._id || other) === userId) {
+      if (other && (other._id || other) === userId && activeChatStatus) {
         activeChatStatus.textContent = isOnline ? 'Active now' : 'Offline';
       }
     }
@@ -596,7 +721,7 @@
       .replace(/'/g, '&#039;');
   }
 
-  // Kickoff
+  // Start Real-Time Socket and Load Conversations
   initSocket();
   loadConversations();
-})();
+});
