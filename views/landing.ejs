@@ -1,190 +1,366 @@
 <%- include('partials/head', { title: 'ChatIn — Real-Time Messaging Platform', isChat: false }) %>
-<%- include('partials/navbar') %>
+<link rel="stylesheet" href="/css/landing.css">
 
-<main class="chatin-landing-main">
-  <!-- Hero Section -->
-  <section class="chatin-hero text-center py-5">
-    <div class="container-xl py-4">
-      <div class="inline-badge mb-4">
-        <i class="bi bi-lightning-charge-fill me-1 text-warning"></i> ChatIn Real-Time Messaging Platform
-      </div>
+<div class="chatin-original-landing min-vh-100 d-flex flex-column">
+  <!-- Dynamic Background Glow Spheres -->
+  <div class="chatin-glow-sphere sphere-top-left"></div>
+  <div class="chatin-glow-sphere sphere-mid-right"></div>
 
-      <h1 class="chatin-hero-title">
-        Conversations without latency.<br>
-        <span class="gradient-text">Designed for human connection.</span>
-      </h1>
-
-      <p class="chatin-hero-sub mx-auto">
-        ChatIn gives you fluid direct messaging, interactive group hubs, live delivery receipts, and rich media sharing — all in one beautifully responsive workspace.
-      </p>
-
-      <div class="d-flex justify-content-center align-items-center gap-3 flex-wrap mt-4">
-        <% if (user) { %>
-          <a href="/chat" class="btn chatin-btn-gradient btn-lg rounded-pill px-5 py-3">
-            Open Chat Workspace <i class="bi bi-arrow-right ms-2"></i>
-          </a>
-        <% } else { %>
-          <a href="/register" class="btn chatin-btn-gradient btn-lg rounded-pill px-5 py-3">
-            Start Messaging — It's Free <i class="bi bi-arrow-right ms-2"></i>
-          </a>
-          <a href="/login" class="btn btn-outline-light btn-lg rounded-pill px-4 py-3">
-            Sign In to Account
-          </a>
-        <% } %>
-      </div>
-
-      <!-- Quick Highlights Bar -->
-      <div class="row justify-content-center mt-5 pt-3 g-4">
-        <div class="col-6 col-md-3">
-          <div class="hero-metric-card">
-            <i class="bi bi-lightning-fill text-primary"></i>
-            <div class="metric-title">Instant Delivery</div>
-            <div class="metric-desc">Sub-second Socket.IO pipe</div>
-          </div>
-        </div>
-        <div class="col-6 col-md-3">
-          <div class="hero-metric-card">
-            <i class="bi bi-check2-all text-info"></i>
-            <div class="metric-title">Live Receipts</div>
-            <div class="metric-desc">Sent, Delivered, Read</div>
-          </div>
-        </div>
-        <div class="col-6 col-md-3">
-          <div class="hero-metric-card">
-            <i class="bi bi-people-fill text-success"></i>
-            <div class="metric-title">Group Hubs</div>
-            <div class="metric-desc">Admin roles & member caps</div>
-          </div>
-        </div>
-        <div class="col-6 col-md-3">
-          <div class="hero-metric-card">
-            <i class="bi bi-shield-lock-fill text-warning"></i>
-            <div class="metric-title">Private & Secure</div>
-            <div class="metric-desc">bcrypt & JWT encryption</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Feature Grid Section -->
-  <section id="features" class="py-5">
-    <div class="container-xl py-4">
-      <div class="text-center mb-5">
-        <div class="section-tag">BUILT FOR SPEED & SIMPLICITY</div>
-        <h2 class="section-title">Everything You Need to Stay Connected</h2>
-        <p class="section-sub text-muted">Thoughtfully engineered features designed for daily work, family, and team communication.</p>
-      </div>
-
-      <div class="row g-4">
-        <!-- 1. Direct Messaging -->
-        <div class="col-md-6 col-lg-4" id="messaging">
-          <div class="feature-card h-100">
-            <div class="feature-icon-box bg-primary-subtle text-primary">
-              <i class="bi bi-chat-dots-fill"></i>
-            </div>
-            <h4 class="feature-title">Fluid 1-to-1 Chat</h4>
-            <p class="feature-body">
-              Instant one-on-one private messaging with typing indicators ("typing..."), last seen timestamps, and live online presence.
-            </p>
-          </div>
-        </div>
-
-        <!-- 2. Read Receipts -->
-        <div class="col-md-6 col-lg-4">
-          <div class="feature-card h-100">
-            <div class="feature-icon-box bg-info-subtle text-info">
-              <i class="bi bi-check2-all"></i>
-            </div>
-            <h4 class="feature-title">Smart Delivery Ticks</h4>
-            <p class="feature-body">
-              Never wonder if your message arrived. Track delivery states with single check (sent), double grey (delivered), and double blue (read).
-            </p>
-          </div>
-        </div>
-
-        <!-- 3. Group Hubs -->
-        <div class="col-md-6 col-lg-4" id="groups">
-          <div class="feature-card h-100">
-            <div class="feature-icon-box bg-success-subtle text-success">
-              <i class="bi bi-people-fill"></i>
-            </div>
-            <h4 class="feature-title">Group Hubs & Channels</h4>
-            <p class="feature-body">
-              Create collaboration groups with custom avatars, group descriptions, multiple admins, member addition, and self-service exit.
-            </p>
-          </div>
-        </div>
-
-        <!-- 4. Media & Attachments -->
-        <div class="col-md-6 col-lg-4">
-          <div class="feature-card h-100">
-            <div class="feature-icon-box bg-warning-subtle text-warning">
-              <i class="bi bi-paperclip"></i>
-            </div>
-            <h4 class="feature-title">Rich File Sharing</h4>
-            <p class="feature-body">
-              Seamlessly share photos, screenshots, PDFs, and office documents with inline thumbnail previews and single-click downloads.
-            </p>
-          </div>
-        </div>
-
-        <!-- 5. Search & Discovery -->
-        <div class="col-md-6 col-lg-4">
-          <div class="feature-card h-100">
-            <div class="feature-icon-box bg-danger-subtle text-danger">
-              <i class="bi bi-search"></i>
-            </div>
-            <h4 class="feature-title">Instant User Search</h4>
-            <p class="feature-body">
-              Discover colleagues and friends immediately by typing their username or email. Start private chats with zero delay.
-            </p>
-          </div>
-        </div>
-
-        <!-- 6. Dark & Light Modes -->
-        <div class="col-md-6 col-lg-4" id="privacy">
-          <div class="feature-card h-100">
-            <div class="feature-icon-box bg-purple-subtle text-purple">
-              <i class="bi bi-moon-stars-fill"></i>
-            </div>
-            <h4 class="feature-title">Adaptive Themes</h4>
-            <p class="feature-body">
-              Enjoy high-contrast dark mode for late night messaging or clean light mode for bright workspaces, saved across sessions.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- CTA Banner -->
-  <section class="py-5 text-center">
+  <!-- 1. Futuristic Floating Header -->
+  <header class="chatin-header-wrap">
     <div class="container-xl">
-      <div class="cta-banner p-5 rounded-4">
-        <h2 class="cta-title">Ready to experience real-time conversation?</h2>
-        <p class="cta-sub mb-4 text-muted">Join ChatIn now. No setup required, just sign in and chat.</p>
-        <a href="<%= user ? '/chat' : '/register' %>" class="btn chatin-btn-gradient btn-lg rounded-pill px-5 py-3">
-          <%= user ? 'Enter Chat Dashboard' : 'Create Free Account' %> <i class="bi bi-arrow-right ms-2"></i>
+      <nav class="chatin-floating-nav d-flex align-items-center justify-content-between p-3 px-4 rounded-pill shadow-lg">
+        <!-- Logo -->
+        <a href="/" class="d-flex align-items-center gap-2 text-decoration-none">
+          <div class="chatin-logo-badge">
+            <img src="/logo.svg" alt="ChatIn" width="28" height="28">
+          </div>
+          <span class="chatin-brand-name">
+            Chat<span class="chatin-brand-accent">In</span>
+          </span>
         </a>
+
+        <!-- Middle Nav Links -->
+        <div class="d-none d-md-flex align-items-center gap-4 chatin-nav-links">
+          <a href="#features" class="chatin-nav-anchor">Features</a>
+          <a href="#experience" class="chatin-nav-anchor">Experience</a>
+          <a href="#features" class="chatin-nav-anchor">Architecture</a>
+          <a href="/chat" class="chatin-nav-anchor">Web App</a>
+        </div>
+
+        <!-- Actions -->
+        <div class="d-flex align-items-center gap-2">
+          <button id="themeToggleBtn" class="btn-theme-toggle" aria-label="Toggle color theme" title="Toggle Theme">
+            <i class="bi bi-sun" id="themeIcon"></i>
+          </button>
+
+          <% if (typeof user !== 'undefined' && user) { %>
+            <a href="/chat" class="btn chatin-btn-gradient rounded-pill px-4 py-2">
+              Open Chat <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+          <% } else { %>
+            <a href="/login" class="btn btn-link text-decoration-none px-3 chatin-nav-anchor">
+              Sign In
+            </a>
+            <a href="/register" class="btn chatin-btn-gradient rounded-pill px-4 py-2">
+              Get Started <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+          <% } %>
+        </div>
+      </nav>
+    </div>
+  </header>
+
+  <!-- 2. Hero Section -->
+  <main class="flex-grow-1">
+    <section class="chatin-hero-section text-center position-relative py-5">
+      <div class="container-xl py-4">
+        <!-- Badge -->
+        <div class="inline-badge mb-4">
+          <span class="badge-pulse-dot"></span>
+          <span>ChatIn Engine 2.4 • Zero-Latency Real-Time Messaging</span>
+        </div>
+
+        <!-- Hero Typography -->
+        <h1 class="chatin-hero-headline fw-bold mx-auto">
+          Conversations without latency.<br>
+          <span class="chatin-headline-gradient">Privacy without compromise.</span>
+        </h1>
+
+        <p class="chatin-hero-subhead mx-auto mt-3">
+          A high-performance messaging workspace built for fluid private chats, group collaboration, rich file exchange, and instant synchronization.
+        </p>
+
+        <!-- CTAs -->
+        <div class="d-flex justify-content-center align-items-center gap-3 flex-wrap mt-4">
+          <a href="<%= user ? '/chat' : '/register' %>" class="btn chatin-btn-gradient btn-lg rounded-pill px-4 py-3 d-inline-flex align-items-center gap-2">
+            <span>Start Messaging — It's Free</span>
+            <i class="bi bi-arrow-right"></i>
+          </a>
+          <a href="#experience" class="btn chatin-btn-glass btn-lg rounded-pill px-4 py-3 d-inline-flex align-items-center gap-2">
+            <i class="bi bi-sparkles text-primary"></i>
+            <span>Try Live Interactive Demo</span>
+          </a>
+        </div>
+
+        <!-- Key Value Strip -->
+        <div class="d-flex justify-content-center align-items-center gap-4 flex-wrap mt-5 pt-3 chatin-value-strip">
+          <div class="d-flex align-items-center gap-2 text-muted small">
+            <i class="bi bi-lightning-charge-fill text-primary"></i>
+            <span>Sub-50ms Socket.IO Delivery</span>
+          </div>
+          <div class="d-flex align-items-center gap-2 text-muted small">
+            <i class="bi bi-shield-check text-success"></i>
+            <span>MongoDB Atlas Cloud Persistence</span>
+          </div>
+          <div class="d-flex align-items-center gap-2 text-muted small">
+            <i class="bi bi-cloud-check-fill text-info"></i>
+            <span>100% Vercel Serverless Ready</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Live Interactive Chat Sandbox (Original Feature) -->
+    <section id="experience" class="py-5 position-relative">
+      <div class="container-xl">
+        <div class="text-center mb-4">
+          <span class="chatin-eyebrow text-uppercase fw-bold">Live Interactive Sandbox</span>
+          <h2 class="chatin-section-title mt-2">Test Drive the Experience Right Here</h2>
+          <p class="text-muted small mx-auto" style="max-width: 480px;">
+            Type any message below to preview real-time message bubbles, timestamps, read receipts, and simulated responses.
+          </p>
+        </div>
+
+        <!-- Live Glassmorphic Chat Window -->
+        <div class="chatin-glass-chat-window mx-auto shadow-lg overflow-hidden border">
+          <!-- Window Titlebar -->
+          <div class="chatin-chat-titlebar p-3 d-flex align-items-center justify-content-between border-bottom">
+            <div class="d-flex align-items-center gap-3">
+              <div class="chatin-window-dots d-flex gap-1">
+                <span class="dot red"></span>
+                <span class="dot yellow"></span>
+                <span class="dot green"></span>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <div
+                  class="rounded-circle text-white fw-bold d-flex align-items-center justify-content-center"
+                  style="width: 34px; height: 34px; background: linear-gradient(135deg, #6366f1, #a855f7); font-size: 0.8rem;"
+                >
+                  KD
+                </div>
+                <div>
+                  <div class="fw-bold small">Kira Vance</div>
+                  <div class="d-flex align-items-center gap-1 text-success" style="font-size: 0.7rem;">
+                    <span class="chatin-online-dot"></span>
+                    <span>Active Now • ChatIn Engine</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-2">
+              <span class="badge rounded-pill bg-primary-subtle text-primary small px-3 py-1">
+                Interactive Simulator
+              </span>
+            </div>
+          </div>
+
+          <!-- Conversation Stream -->
+          <div class="chatin-chat-stream p-4 d-flex flex-column gap-3" id="sandboxStream">
+            <!-- Message 1 -->
+            <div class="d-flex justify-content-start">
+              <div class="chatin-demo-bubble bubble-other p-3 rounded-4 shadow-sm">
+                <div class="d-flex align-items-center justify-content-between gap-3 mb-1">
+                  <span class="fw-semibold small text-primary">Kira (Design Lead)</span>
+                  <span class="text-muted" style="font-size: 0.7rem;">9:41 AM</span>
+                </div>
+                <p class="mb-0 small">Hey team! The new brand tokens for ChatIn look phenomenal on OLED displays.</p>
+              </div>
+            </div>
+
+            <!-- Message 2 -->
+            <div class="d-flex justify-content-start">
+              <div class="chatin-demo-bubble bubble-other p-3 rounded-4 shadow-sm">
+                <div class="d-flex align-items-center justify-content-between gap-3 mb-1">
+                  <span class="fw-semibold small text-success">Alex (Backend)</span>
+                  <span class="text-muted" style="font-size: 0.7rem;">9:42 AM</span>
+                </div>
+                <p class="mb-0 small">Agreed. Socket latency is clocking under 40ms globally on our WebSocket cluster.</p>
+                <!-- Reactions -->
+                <div class="d-flex gap-1 mt-2">
+                  <span class="sandbox-reaction-pill">👍 4</span>
+                  <span class="sandbox-reaction-pill">🔥 5</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Message 3 (User) -->
+            <div class="d-flex justify-content-end">
+              <div class="chatin-demo-bubble bubble-me p-3 rounded-4 shadow-sm">
+                <div class="d-flex align-items-center justify-content-between gap-3 mb-1">
+                  <span class="fw-semibold small text-white-50">You</span>
+                  <div class="d-flex align-items-center gap-1 text-white-50" style="font-size: 0.7rem;">
+                    <span>9:43 AM</span>
+                    <i class="bi bi-check2-all text-info"></i>
+                  </div>
+                </div>
+                <p class="mb-0 small text-white">Just sent the design assets over. Test typing status and read receipts below! 🚀</p>
+              </div>
+            </div>
+
+            <!-- Dynamic Messages -->
+            <div id="dynamicSandboxMessages" class="d-flex flex-column gap-3"></div>
+
+            <!-- Typing Indicator -->
+            <div id="sandboxTypingRow" class="extra-small text-muted d-none align-items-center gap-1 mt-1">
+              <span class="typing-bubble-dot"></span>
+              <span id="sandboxTypingText">Kira is typing...</span>
+            </div>
+          </div>
+
+          <!-- Interactive Composer -->
+          <div class="chatin-chat-composer p-3 border-top">
+            <form id="sandboxForm" class="d-flex align-items-center gap-2">
+              <button type="button" class="btn btn-icon text-muted" id="sandboxEmojiBtn" title="Add reaction">
+                <i class="bi bi-emoji-smile"></i>
+              </button>
+              <button type="button" class="btn btn-icon text-muted" title="Attach file">
+                <i class="bi bi-paperclip"></i>
+              </button>
+              <input
+                type="text"
+                id="sandboxInput"
+                class="form-control chatin-demo-input rounded-pill px-3 py-2 flex-grow-1"
+                placeholder="Type a demo message... (e.g. 'How fast is delivery?')"
+                autocomplete="off"
+              >
+              <button type="submit" class="btn chatin-btn-gradient rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;" title="Send">
+                <i class="bi bi-send-fill text-white"></i>
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Core Features Showcase -->
+    <section id="features" class="py-5 position-relative">
+      <div class="container-xl py-4">
+        <div class="text-center mb-5">
+          <span class="chatin-eyebrow text-uppercase fw-bold">Built for Modern Work & Life</span>
+          <h2 class="chatin-section-title mt-2">Engineered from the Database to the Pixel</h2>
+        </div>
+
+        <div class="row g-4">
+          <!-- Card 1 -->
+          <div class="col-md-6 col-lg-4">
+            <div class="chatin-feature-card h-100 p-4 rounded-4 shadow-sm border">
+              <div class="chatin-icon-box mb-3">
+                <i class="bi bi-lightning-charge-fill text-primary fs-5"></i>
+              </div>
+              <h5 class="fw-bold mb-2">Real-Time WebSockets</h5>
+              <p class="text-muted small mb-0">
+                Built on persistent Socket.IO channels with automatic auto-sync polling fallback for seamless connection everywhere, including Vercel serverless.
+              </p>
+            </div>
+          </div>
+
+          <!-- Card 2 -->
+          <div class="col-md-6 col-lg-4">
+            <div class="chatin-feature-card h-100 p-4 rounded-4 shadow-sm border">
+              <div class="chatin-icon-box mb-3">
+                <i class="bi bi-people-fill text-success fs-5"></i>
+              </div>
+              <h5 class="fw-bold mb-2">Collaborative Group Hubs</h5>
+              <p class="text-muted small mb-0">
+                Create communities with custom avatars, descriptions, admin management, role delegation, and real-time member alerts.
+              </p>
+            </div>
+          </div>
+
+          <!-- Card 3 -->
+          <div class="col-md-6 col-lg-4">
+            <div class="chatin-feature-card h-100 p-4 rounded-4 shadow-sm border">
+              <div class="chatin-icon-box mb-3">
+                <i class="bi bi-shield-check text-info fs-5"></i>
+              </div>
+              <h5 class="fw-bold mb-2">Stateless JWT Security</h5>
+              <p class="text-muted small mb-0">
+                Salted bcrypt password hashing, encrypted JWT tokens, rate-limited auth endpoints, and query sanitization to protect your data.
+              </p>
+            </div>
+          </div>
+
+          <!-- Card 4 -->
+          <div class="col-md-6 col-lg-4">
+            <div class="chatin-feature-card h-100 p-4 rounded-4 shadow-sm border">
+              <div class="chatin-icon-box mb-3">
+                <i class="bi bi-image text-warning fs-5"></i>
+              </div>
+              <h5 class="fw-bold mb-2">Rich File & Media Studio</h5>
+              <p class="text-muted small mb-0">
+                Share photos, PDFs, documents, archives, and custom avatar uploads directly stored with MongoDB Atlas memory adapters.
+              </p>
+            </div>
+          </div>
+
+          <!-- Card 5 -->
+          <div class="col-md-6 col-lg-4">
+            <div class="chatin-feature-card h-100 p-4 rounded-4 shadow-sm border">
+              <div class="chatin-icon-box mb-3">
+                <i class="bi bi-sun text-danger fs-5"></i>
+              </div>
+              <h5 class="fw-bold mb-2">High-Contrast Dual Theme</h5>
+              <p class="text-muted small mb-0">
+                Painstakingly tuned light and AMOLED dark themes. Every label, bubble, and badge has high contrast for zero eye strain.
+              </p>
+            </div>
+          </div>
+
+          <!-- Card 6 -->
+          <div class="col-md-6 col-lg-4">
+            <div class="chatin-feature-card h-100 p-4 rounded-4 shadow-sm border">
+              <div class="chatin-icon-box mb-3">
+                <i class="bi bi-globe text-primary fs-5"></i>
+              </div>
+              <h5 class="fw-bold mb-2">Cloud Horizontal Scaling</h5>
+              <p class="text-muted small mb-0">
+                Configured with Socket.IO Redis Adapter support for instant cross-instance communication when scaling across multiple servers.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Big CTA Banner -->
+    <section class="py-5 my-auto">
+      <div class="container-xl">
+        <div class="chatin-cta-banner p-5 rounded-4 shadow-lg text-center mx-auto position-relative overflow-hidden">
+          <h2 class="display-6 fw-bold mb-3 text-white">Experience ChatIn in action</h2>
+          <p class="text-white-50 mb-4 mx-auto" style="max-width: 520px;">
+            Create your account in seconds and start connecting with colleagues, friends, or groups without limitations.
+          </p>
+          <div class="d-flex flex-wrap justify-content-center gap-3">
+            <a
+              href="<%= user ? '/chat' : '/register' %>"
+              class="btn chatin-btn-white rounded-pill px-5 py-3 fw-bold d-flex align-items-center gap-2"
+            >
+              <span><%= user ? 'Open Chat Dashboard' : 'Create Free Account' %></span>
+              <i class="bi bi-arrow-right"></i>
+            </a>
+            <% if (!user) { %>
+              <a
+                href="/login"
+                class="btn chatin-btn-ghost-white rounded-pill px-4 py-3 fw-semibold"
+              >
+                Sign In
+              </a>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 6. Footer -->
+  <footer class="chatin-footer py-4 border-top mt-auto">
+    <div class="container-xl d-flex flex-column flex-md-row align-items-center justify-content-between gap-3 text-muted small">
+      <div class="d-flex align-items-center gap-2">
+        <img src="/logo.svg" alt="ChatIn" width="22" height="22">
+        <span class="fw-bold text-body">ChatIn</span>
+        <span class="text-muted extra-small">© <%= new Date().getFullYear() %> ChatIn Team. All rights reserved.</span>
+      </div>
+      <div class="d-flex gap-4">
+        <a href="#features" class="text-muted extra-small text-decoration-none">Features</a>
+        <a href="#experience" class="text-muted extra-small text-decoration-none">Live Demo</a>
+        <a href="/login" class="text-muted extra-small text-decoration-none">Sign In</a>
+        <a href="/register" class="text-muted extra-small text-decoration-none">Create Account</a>
       </div>
     </div>
-  </section>
-</main>
+  </footer>
+</div>
 
-<footer class="chatin-footer py-4 text-center border-top border-dark-subtle">
-  <div class="container-xl d-flex justify-content-between align-items-center flex-wrap gap-3">
-    <div class="d-flex align-items-center gap-2">
-      <img src="/logo.svg" alt="ChatIn" width="22" height="22">
-      <span class="fw-bold">ChatIn</span>
-      <span class="text-muted small">© <%= new Date().getFullYear() %> ChatIn Team. All rights reserved.</span>
-    </div>
-    <div class="d-flex gap-3">
-      <a href="/login" class="text-muted text-decoration-none small">Sign In</a>
-      <a href="/register" class="text-muted text-decoration-none small">Register</a>
-      <a href="/chat" class="text-muted text-decoration-none small">Web App</a>
-    </div>
-  </div>
-</footer>
-
+<script src="/js/landing.js"></script>
 <%- include('partials/footer') %>
