@@ -1,0 +1,46 @@
+<header class="chatin-header-wrap">
+  <div class="container-xl">
+    <nav class="chatin-floating-nav d-flex align-items-center justify-content-between p-3 px-4 rounded-pill shadow-lg">
+      <!-- Logo & Brand -->
+      <a href="/" class="d-flex align-items-center gap-2 text-decoration-none">
+        <div class="chatin-logo-badge">
+          <img src="/logo.svg" alt="ChatIn" width="28" height="28">
+        </div>
+        <span class="chatin-brand-name">
+          Chat<span class="chatin-brand-accent">In</span>
+        </span>
+      </a>
+
+      <!-- Navigation Links -->
+      <div class="d-none d-md-flex align-items-center gap-4 chatin-nav-links">
+        <a href="#features" class="chatin-nav-anchor">App Features</a>
+        <a href="#messaging" class="chatin-nav-anchor">Direct Chat</a>
+        <a href="#groups" class="chatin-nav-anchor">Group Hubs</a>
+        <a href="#privacy" class="chatin-nav-anchor">Privacy</a>
+      </div>
+
+      <!-- Actions -->
+      <div class="d-flex align-items-center gap-2">
+        <button id="themeToggleBtn" class="btn-theme-toggle" aria-label="Toggle color theme" title="Toggle Theme">
+          <i class="bi bi-sun" id="themeIcon"></i>
+        </button>
+
+        <% if (typeof user !== 'undefined' && user) { %>
+          <a href="/chat" class="btn chatin-btn-gradient rounded-pill px-4 py-2">
+            Open Chat <i class="bi bi-arrow-right ms-1"></i>
+          </a>
+          <a href="/logout" class="btn btn-outline-secondary rounded-pill px-3 py-2 text-decoration-none">
+            Sign Out
+          </a>
+        <% } else { %>
+          <a href="/login" class="btn btn-link text-decoration-none px-3 chatin-nav-anchor">
+            Sign In
+          </a>
+          <a href="/register" class="btn chatin-btn-gradient rounded-pill px-4 py-2">
+            Get Started <i class="bi bi-arrow-right ms-1"></i>
+          </a>
+        <% } %>
+      </div>
+    </nav>
+  </div>
+</header>

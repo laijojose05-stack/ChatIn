@@ -17,8 +17,8 @@ build/
 .output/
 
 # Uploaded user files in dev
-backend/uploads/*
-!backend/uploads/.gitkeep
+public/uploads/*
+!public/uploads/.gitkeep
 
 # Logs & temp
 *.log

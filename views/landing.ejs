@@ -1,0 +1,190 @@
+<%- include('partials/head', { title: 'ChatIn — Real-Time Messaging Platform', isChat: false }) %>
+<%- include('partials/navbar') %>
+
+<main class="chatin-landing-main">
+  <!-- Hero Section -->
+  <section class="chatin-hero text-center py-5">
+    <div class="container-xl py-4">
+      <div class="inline-badge mb-4">
+        <i class="bi bi-lightning-charge-fill me-1 text-warning"></i> ChatIn Real-Time Messaging Platform
+      </div>
+
+      <h1 class="chatin-hero-title">
+        Conversations without latency.<br>
+        <span class="gradient-text">Designed for human connection.</span>
+      </h1>
+
+      <p class="chatin-hero-sub mx-auto">
+        ChatIn gives you fluid direct messaging, interactive group hubs, live delivery receipts, and rich media sharing — all in one beautifully responsive workspace.
+      </p>
+
+      <div class="d-flex justify-content-center align-items-center gap-3 flex-wrap mt-4">
+        <% if (user) { %>
+          <a href="/chat" class="btn chatin-btn-gradient btn-lg rounded-pill px-5 py-3">
+            Open Chat Workspace <i class="bi bi-arrow-right ms-2"></i>
+          </a>
+        <% } else { %>
+          <a href="/register" class="btn chatin-btn-gradient btn-lg rounded-pill px-5 py-3">
+            Start Messaging — It's Free <i class="bi bi-arrow-right ms-2"></i>
+          </a>
+          <a href="/login" class="btn btn-outline-light btn-lg rounded-pill px-4 py-3">
+            Sign In to Account
+          </a>
+        <% } %>
+      </div>
+
+      <!-- Quick Highlights Bar -->
+      <div class="row justify-content-center mt-5 pt-3 g-4">
+        <div class="col-6 col-md-3">
+          <div class="hero-metric-card">
+            <i class="bi bi-lightning-fill text-primary"></i>
+            <div class="metric-title">Instant Delivery</div>
+            <div class="metric-desc">Sub-second Socket.IO pipe</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="hero-metric-card">
+            <i class="bi bi-check2-all text-info"></i>
+            <div class="metric-title">Live Receipts</div>
+            <div class="metric-desc">Sent, Delivered, Read</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="hero-metric-card">
+            <i class="bi bi-people-fill text-success"></i>
+            <div class="metric-title">Group Hubs</div>
+            <div class="metric-desc">Admin roles & member caps</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="hero-metric-card">
+            <i class="bi bi-shield-lock-fill text-warning"></i>
+            <div class="metric-title">Private & Secure</div>
+            <div class="metric-desc">bcrypt & JWT encryption</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feature Grid Section -->
+  <section id="features" class="py-5">
+    <div class="container-xl py-4">
+      <div class="text-center mb-5">
+        <div class="section-tag">BUILT FOR SPEED & SIMPLICITY</div>
+        <h2 class="section-title">Everything You Need to Stay Connected</h2>
+        <p class="section-sub text-muted">Thoughtfully engineered features designed for daily work, family, and team communication.</p>
+      </div>
+
+      <div class="row g-4">
+        <!-- 1. Direct Messaging -->
+        <div class="col-md-6 col-lg-4" id="messaging">
+          <div class="feature-card h-100">
+            <div class="feature-icon-box bg-primary-subtle text-primary">
+              <i class="bi bi-chat-dots-fill"></i>
+            </div>
+            <h4 class="feature-title">Fluid 1-to-1 Chat</h4>
+            <p class="feature-body">
+              Instant one-on-one private messaging with typing indicators ("typing..."), last seen timestamps, and live online presence.
+            </p>
+          </div>
+        </div>
+
+        <!-- 2. Read Receipts -->
+        <div class="col-md-6 col-lg-4">
+          <div class="feature-card h-100">
+            <div class="feature-icon-box bg-info-subtle text-info">
+              <i class="bi bi-check2-all"></i>
+            </div>
+            <h4 class="feature-title">Smart Delivery Ticks</h4>
+            <p class="feature-body">
+              Never wonder if your message arrived. Track delivery states with single check (sent), double grey (delivered), and double blue (read).
+            </p>
+          </div>
+        </div>
+
+        <!-- 3. Group Hubs -->
+        <div class="col-md-6 col-lg-4" id="groups">
+          <div class="feature-card h-100">
+            <div class="feature-icon-box bg-success-subtle text-success">
+              <i class="bi bi-people-fill"></i>
+            </div>
+            <h4 class="feature-title">Group Hubs & Channels</h4>
+            <p class="feature-body">
+              Create collaboration groups with custom avatars, group descriptions, multiple admins, member addition, and self-service exit.
+            </p>
+          </div>
+        </div>
+
+        <!-- 4. Media & Attachments -->
+        <div class="col-md-6 col-lg-4">
+          <div class="feature-card h-100">
+            <div class="feature-icon-box bg-warning-subtle text-warning">
+              <i class="bi bi-paperclip"></i>
+            </div>
+            <h4 class="feature-title">Rich File Sharing</h4>
+            <p class="feature-body">
+              Seamlessly share photos, screenshots, PDFs, and office documents with inline thumbnail previews and single-click downloads.
+            </p>
+          </div>
+        </div>
+
+        <!-- 5. Search & Discovery -->
+        <div class="col-md-6 col-lg-4">
+          <div class="feature-card h-100">
+            <div class="feature-icon-box bg-danger-subtle text-danger">
+              <i class="bi bi-search"></i>
+            </div>
+            <h4 class="feature-title">Instant User Search</h4>
+            <p class="feature-body">
+              Discover colleagues and friends immediately by typing their username or email. Start private chats with zero delay.
+            </p>
+          </div>
+        </div>
+
+        <!-- 6. Dark & Light Modes -->
+        <div class="col-md-6 col-lg-4" id="privacy">
+          <div class="feature-card h-100">
+            <div class="feature-icon-box bg-purple-subtle text-purple">
+              <i class="bi bi-moon-stars-fill"></i>
+            </div>
+            <h4 class="feature-title">Adaptive Themes</h4>
+            <p class="feature-body">
+              Enjoy high-contrast dark mode for late night messaging or clean light mode for bright workspaces, saved across sessions.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Banner -->
+  <section class="py-5 text-center">
+    <div class="container-xl">
+      <div class="cta-banner p-5 rounded-4">
+        <h2 class="cta-title">Ready to experience real-time conversation?</h2>
+        <p class="cta-sub mb-4 text-muted">Join ChatIn now. No setup required, just sign in and chat.</p>
+        <a href="<%= user ? '/chat' : '/register' %>" class="btn chatin-btn-gradient btn-lg rounded-pill px-5 py-3">
+          <%= user ? 'Enter Chat Dashboard' : 'Create Free Account' %> <i class="bi bi-arrow-right ms-2"></i>
+        </a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="chatin-footer py-4 text-center border-top border-dark-subtle">
+  <div class="container-xl d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-2">
+      <img src="/logo.svg" alt="ChatIn" width="22" height="22">
+      <span class="fw-bold">ChatIn</span>
+      <span class="text-muted small">© <%= new Date().getFullYear() %> ChatIn Team. All rights reserved.</span>
+    </div>
+    <div class="d-flex gap-3">
+      <a href="/login" class="text-muted text-decoration-none small">Sign In</a>
+      <a href="/register" class="text-muted text-decoration-none small">Register</a>
+      <a href="/chat" class="text-muted text-decoration-none small">Web App</a>
+    </div>
+  </div>
+</footer>
+
+<%- include('partials/footer') %>
