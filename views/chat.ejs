@@ -92,18 +92,18 @@
     <div class="active-chat-wrapper d-none flex-column h-100" id="activeChatWrapper">
       <!-- Chat Header -->
       <header class="chat-header px-3 py-2 border-bottom d-flex align-items-center justify-content-between">
-        <div class="d-flex align-items-center gap-2">
-          <button class="btn btn-icon d-md-none" id="mobileBackBtn" title="Back to conversations">
-            <i class="bi bi-arrow-left"></i>
+        <div class="d-flex align-items-center gap-2 overflow-hidden min-w-0" style="min-width: 0;">
+          <button class="btn btn-icon d-md-none flex-shrink-0" id="mobileBackBtn" title="Back to conversations" aria-label="Back">
+            <i class="bi bi-arrow-left fs-5"></i>
           </button>
-          <div class="chat-target-avatar" id="activeChatAvatar"></div>
-          <div>
-            <div class="active-chat-name fw-semibold" id="activeChatName">Conversation</div>
-            <div class="active-chat-status extra-small text-muted" id="activeChatStatus">Active</div>
+          <div class="chat-target-avatar flex-shrink-0" id="activeChatAvatar"></div>
+          <div class="overflow-hidden min-w-0" style="min-width: 0;">
+            <div class="active-chat-name fw-semibold text-truncate" id="activeChatName">Conversation</div>
+            <div class="active-chat-status extra-small text-muted text-truncate" id="activeChatStatus">Active</div>
           </div>
         </div>
 
-        <div class="d-flex align-items-center gap-1">
+        <div class="d-flex align-items-center gap-1 flex-shrink-0">
           <button class="btn btn-icon" id="chatInfoBtn" title="Chat Details">
             <i class="bi bi-info-circle"></i>
           </button>

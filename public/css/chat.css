@@ -716,16 +716,34 @@
   color: var(--text-primary);
 }
 
-/* Mobile Responsiveness */
+/* ==========================================================================
+   Mobile Native App Experience (< 768px)
+   WhatsApp / Telegram Native Feel & Safe Area Insets
+   ========================================================================== */
 @media (max-width: 768px) {
+  /* Viewport & App Container */
   .chat-app-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
     height: 100dvh;
+    height: 100vh;
     height: -webkit-fill-available;
+    overflow: hidden;
   }
 
+  /* Full Screen Switch between Sidebar and Active Chat */
   .sidebar-wrapper {
-    width: 100% !important;
-    min-width: 100% !important;
+    width: 100vw !important;
+    min-width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    border-right: none !important;
   }
 
   .chat-app-container.chat-active .sidebar-wrapper {
@@ -736,34 +754,173 @@
     display: none !important;
   }
 
+  .chat-main-area {
+    width: 100vw !important;
+    min-width: 100vw !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  /* Sidebar Header & Safe Top */
+  .sidebar-header {
+    height: 56px !important;
+    padding-top: max(0.4rem, env(safe-area-inset-top, 0.4rem)) !important;
+  }
+
+  /* Horizontal Filter Pills with touch momentum */
+  .filter-tabs {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-bottom: 0.5rem !important;
+  }
+  .filter-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .filter-pill {
+    white-space: nowrap !important;
+    flex-shrink: 0;
+    padding: 0.35rem 0.85rem !important;
+    font-size: 0.8rem !important;
+  }
+
+  /* Conversation Item Touch Targets */
+  .conv-item {
+    padding: 0.85rem 1rem !important;
+    min-height: 68px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .conv-item:active {
+    background-color: var(--bg-card-hover) !important;
+  }
+
+  /* Sidebar Footer with Home Indicator Inset */
+  .sidebar-footer {
+    padding-bottom: max(0.65rem, env(safe-area-inset-bottom, 0.65rem)) !important;
+  }
+
+  /* Chat Header */
   .chat-header {
-    height: 56px;
-    padding: 0.5rem 0.75rem !important;
+    height: 58px !important;
+    padding: 0.4rem 0.65rem !important;
+    padding-top: max(0.4rem, env(safe-area-inset-top, 0.4rem)) !important;
   }
 
   #mobileBackBtn {
-    min-width: 38px;
-    min-height: 38px;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    border-radius: 50% !important;
     display: flex !important;
     align-items: center;
     justify-content: center;
-    padding: 0;
+    padding: 0 !important;
+    margin-right: -2px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #mobileBackBtn:active {
+    transform: scale(0.9);
+    background-color: var(--bg-card-hover);
   }
 
-  .chat-composer-section {
-    padding: 0.5rem 0.75rem !important;
+  .chat-target-avatar {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 0.85rem !important;
+    flex-shrink: 0;
+  }
+
+  .active-chat-name {
+    font-size: 0.95rem !important;
+    line-height: 1.25;
+  }
+  .active-chat-status {
+    font-size: 0.72rem !important;
+  }
+
+  /* Messages Viewport */
+  .messages-viewport {
+    padding: 0.65rem 0.65rem !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+
+  .messages-stream {
+    gap: 0.35rem !important;
+  }
+
+  /* Message Bubble: Comfortable WhatsApp-style Width & Proportions */
+  .message-bubble {
+    max-width: 86% !important;
+    padding: 0.55rem 0.85rem !important;
+    font-size: 0.93rem !important;
+    line-height: 1.4 !important;
+    border-radius: 18px !important;
+  }
+
+  .message-row.sent .message-bubble {
+    border-radius: 18px 18px 4px 18px !important;
+  }
+
+  .message-row.received .message-bubble {
+    border-radius: 18px 18px 18px 4px !important;
+  }
+
+  .msg-img-attachment {
+    max-width: 100% !important;
+    max-height: 260px;
+    object-fit: cover;
+  }
+
+  /* Message Composer Bar with Home Indicator Safe Area */
+  .message-composer-bar {
+    padding: 0.45rem 0.65rem !important;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0.5rem)) !important;
+    background-color: var(--bg-sidebar) !important;
+  }
+
+  #messageForm {
+    gap: 0.4rem !important;
   }
 
   .composer-input,
   .form-control {
     font-size: 16px !important; /* Prevents auto-zoom in iOS Safari */
+    min-height: 40px !important;
+    padding: 0.45rem 0.95rem !important;
+    border-radius: 20px !important;
   }
 
-  .chat-message-bubble {
-    max-width: 86% !important;
+  .btn-send {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    flex-shrink: 0;
+  }
+  .btn-send:active {
+    transform: scale(0.92);
   }
 
-  /* Settings Modal on Mobile */
+  .btn-icon {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    min-height: 38px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .btn-icon:active {
+    transform: scale(0.92);
+  }
+
+  /* Modals on Mobile */
   .settings-modal-dialog {
     max-width: calc(100vw - 1rem) !important;
     margin: 0.5rem auto !important;
@@ -804,12 +961,12 @@
     padding: 1rem 0.75rem !important;
   }
 
-  /* Emoji Picker & Modals */
+  /* Emoji Picker on Mobile */
   .emoji-popover {
     position: fixed !important;
-    left: 12px !important;
-    right: 12px !important;
-    bottom: 75px !important;
+    left: 8px !important;
+    right: 8px !important;
+    bottom: calc(56px + max(0.5rem, env(safe-area-inset-bottom, 0.5rem))) !important;
     width: auto !important;
     max-width: 100vw !important;
     z-index: 1050 !important;
