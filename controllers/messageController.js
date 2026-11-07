@@ -59,6 +59,11 @@ const getMessages = async (req, res, next) => {
       hasMore = olderCount > 0;
     }
 
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+
     res.json({
       success: true,
       count: ordered.length,

@@ -404,16 +404,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-      const res = await fetch(`/api/messages/${conv._id}`);
+      const res = await fetch(`/api/messages/${conv._id}?limit=40&_t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
       if (data.success) {
         renderMessages(data.data || []);
         startActiveSync();
-        // Mark as read in API and socket
-        fetch(`/api/messages/${conv._id}/read`, { method: 'POST' }).catch(() => {});
+        // WhatsApp ACK: Mark as read and delivered immediately upon viewing
+        fetch(`/api/messages/${conv._id}/delivered?_t=${Date.now()}`, { method: 'POST', cache: 'no-store' }).catch(() => {});
+        fetch(`/api/messages/${conv._id}/read?_t=${Date.now()}`, { method: 'POST', cache: 'no-store' }).catch(() => {});
         if (socket && socket.connected) {
+          socket.emit('message_delivered', { conversationId: conv._id });
           socket.emit('message_read', { conversationId: conv._id });
-          socket.emit('read_message', { conversationId: conv._id });
         }
       }
     } catch (err) {
@@ -1510,8 +1511,8 @@ document.addEventListener('DOMContentLoaded', () => {
     isSyncingActive = true;
     try {
       const convId = activeConversation._id;
-      // Fetch latest messages directly — eliminates any timestamp/timezone drift or clock skew
-      const res = await fetch(`/api/messages/${convId}?limit=35`);
+      // Fetch latest messages directly with anti-cache timestamp — guarantees fresh DB state every second
+      const res = await fetch(`/api/messages/${convId}?limit=35&_t=${Date.now()}`, { cache: 'no-store' });
       if (!res.ok) return;
       const data = await res.json();
       if (data.success && Array.isArray(data.data) && data.data.length > 0) {
@@ -1538,14 +1539,20 @@ document.addEventListener('DOMContentLoaded', () => {
               playNotificationChime();
             }
           } else {
-            // Live WhatsApp tick updates for sender
+            // Live WhatsApp tick updates for sender (Clock -> Single ✓ -> Double ✓✓ -> Blue ✓✓)
             if (isMine) {
-              const oldTick = existingRow.querySelector(`#tick-${msg._id}`);
-              if (oldTick) {
+              const tickEl = existingRow.querySelector('.msg-meta i');
+              if (tickEl) {
                 const freshTickHtml = getTickHtml(msg, true);
-                if (oldTick.outerHTML !== freshTickHtml) {
-                  oldTick.outerHTML = freshTickHtml;
+                if (tickEl.outerHTML !== freshTickHtml) {
+                  tickEl.outerHTML = freshTickHtml;
                 }
+              }
+            } else {
+              // Check if recipient has marked this message as read in DB
+              const iHaveRead = Array.isArray(msg.readBy) && msg.readBy.some(r => (r.user?._id || r.user || r).toString() === currentId);
+              if (!iHaveRead) {
+                hasUnreadIncoming = true;
               }
             }
 
@@ -1575,8 +1582,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (hasUnreadIncoming) {
-          fetch(`/api/messages/${convId}/delivered`, { method: 'POST' }).catch(() => {});
-          fetch(`/api/messages/${convId}/read`, { method: 'POST' }).catch(() => {});
+          fetch(`/api/messages/${convId}/delivered?_t=${Date.now()}`, { method: 'POST', cache: 'no-store' }).catch(() => {});
+          fetch(`/api/messages/${convId}/read?_t=${Date.now()}`, { method: 'POST', cache: 'no-store' }).catch(() => {});
           if (socket && socket.connected) {
             socket.emit('message_delivered', { conversationId: convId });
             socket.emit('message_read', { conversationId: convId });
@@ -1596,7 +1603,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (isSyncingConversations) return;
       isSyncingConversations = true;
       try {
-        const res = await fetch('/api/conversations');
+        const res = await fetch(`/api/conversations?_t=${Date.now()}`, { cache: 'no-store' });
         if (!res.ok) return;
         const data = await res.json();
         if (data.success && Array.isArray(data.data)) {
