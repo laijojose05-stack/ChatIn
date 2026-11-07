@@ -874,16 +874,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const row = document.createElement('div');
             row.className = 'd-flex align-items-center justify-content-between p-2 rounded hover-bg cursor-pointer';
             row.innerHTML = `
-              <div class="d-flex align-items-center gap-2">
-                <div class="user-avatar-circle" style="width:34px;height:34px;font-size:0.8rem;">
+              <div class="d-flex align-items-center gap-2 overflow-hidden min-w-0" style="min-width:0;">
+                <div class="user-avatar-circle flex-shrink-0" style="width:36px;height:36px;font-size:0.85rem;">
                   ${(u.username || 'CI').substring(0, 2).toUpperCase()}
                 </div>
-                <div>
-                  <div class="fw-semibold small">${escapeHtml(u.username)}</div>
-                  <div class="text-muted extra-small">${escapeHtml(u.email)}</div>
+                <div class="overflow-hidden min-w-0" style="min-width:0;">
+                  <div class="fw-semibold small text-truncate">${escapeHtml(u.username)}</div>
+                  <div class="text-muted extra-small text-truncate">${escapeHtml(u.email)}</div>
                 </div>
               </div>
-              <button class="btn btn-sm chatin-btn-gradient rounded-pill px-3">Chat</button>
+              <button class="btn btn-sm chatin-btn-gradient rounded-pill px-3 flex-shrink-0 ms-2">Chat</button>
             `;
 
             row.addEventListener('click', async () => {

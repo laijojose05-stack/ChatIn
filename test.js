@@ -164,6 +164,11 @@ async function runTests() {
       throw new Error('Password security check failed');
     }
 
+    // Teardown: Clean up automated test user so live database stays pristine
+    const User = require('./models/User');
+    await User.deleteOne({ email: testEmail });
+    console.log('   ✅ Automated test user cleaned up from database');
+
     console.log('\n🎉 ALL 11 TESTS PASSED! ChatIn Single-Directory Node App is 100% operational, spam-protected, and equipped with settings.\n');
     process.exit(0);
   } catch (err) {

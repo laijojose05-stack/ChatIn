@@ -10,10 +10,16 @@ const searchUsers = async (req, res, next) => {
     const rawSearch = (req.query.search || req.query.q || '').trim();
     const search = rawSearch.replace(/^@/, '');
 
-    // If query is empty, return a list of recent active users (excluding current user)
+    const testFilter = {
+      username: { $not: /^user_\d{10,}$/i, $nin: [/^testuser_/i] },
+      email: { $not: /@example\.com$/i },
+    };
+
+    // If query is empty, return a list of recent active users (excluding current user and automated test accounts)
     if (!search) {
       const users = await User.find({
         _id: { $ne: req.user._id },
+        ...testFilter,
       })
         .select('username email profilePicture bio isOnline lastSeen')
         .sort({ isOnline: -1, lastSeen: -1 })
@@ -28,6 +34,7 @@ const searchUsers = async (req, res, next) => {
     // Case-insensitive substring match
     const users = await User.find({
       _id: { $ne: req.user._id },
+      ...testFilter,
       $or: [
         { username: { $regex: escaped, $options: 'i' } },
         { email: { $regex: escaped, $options: 'i' } },

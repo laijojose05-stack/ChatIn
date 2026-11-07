@@ -921,6 +921,11 @@
   }
 
   /* Modals on Mobile */
+  .modal-dialog {
+    margin: 0.5rem auto !important;
+    max-width: calc(100vw - 1rem) !important;
+  }
+
   .settings-modal-dialog {
     max-width: calc(100vw - 1rem) !important;
     margin: 0.5rem auto !important;
@@ -937,12 +942,21 @@
     width: 100% !important;
     border-right: none !important;
     border-bottom: 1px solid var(--border-color) !important;
-    padding: 0.5rem 0.75rem !important;
+    padding: 0.5rem 0.65rem !important;
+    display: flex !important;
     flex-direction: row !important;
+    flex-wrap: nowrap !important;
     overflow-x: auto !important;
-    gap: 0.35rem !important;
+    gap: 0.4rem !important;
     -webkit-overflow-scrolling: touch;
-    flex-shrink: 0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    background-color: var(--bg-sidebar) !important;
+    flex-shrink: 0 !important;
+  }
+
+  .settings-sidebar-nav::-webkit-scrollbar {
+    display: none;
   }
 
   .settings-sidebar-nav .tracking-wider,
@@ -950,15 +964,53 @@
     display: none !important;
   }
 
+  .settings-sidebar-nav .nav {
+    display: contents !important;
+  }
+
   .settings-nav-item {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.35rem !important;
     white-space: nowrap !important;
-    width: auto !important;
-    padding: 0.45rem 0.75rem !important;
-    font-size: 0.85rem !important;
+    flex-shrink: 0 !important;
+    padding: 0.4rem 0.75rem !important;
+    font-size: 0.8rem !important;
+    font-weight: 600 !important;
+    border-radius: 9999px !important;
+    background: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-secondary) !important;
+  }
+
+  .settings-nav-item.active {
+    background: var(--accent-gradient) !important;
+    color: #ffffff !important;
+    border-color: transparent !important;
+    box-shadow: 0 2px 8px var(--accent-glow) !important;
   }
 
   .settings-content-pane {
-    padding: 1rem 0.75rem !important;
+    padding: 0.85rem 0.75rem !important;
+    flex-grow: 1 !important;
+    overflow-y: auto !important;
+  }
+
+  .settings-profile-banner {
+    height: 70px !important;
+  }
+
+  .settings-avatar-holder {
+    width: 64px !important;
+    height: 64px !important;
+    margin-top: -32px !important;
+    margin-left: 0.25rem !important;
+    border-width: 3px !important;
+  }
+
+  .settings-card {
+    padding: 0.85rem !important;
+    margin-bottom: 0.85rem !important;
   }
 
   /* Emoji Picker on Mobile */
