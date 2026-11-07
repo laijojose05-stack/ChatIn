@@ -7,6 +7,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const helmet = require('helmet');
 const { Server } = require('socket.io');
+const mongoose = require('mongoose');
 
 const connectDB = require('./config/db');
 const { registerSocketHandlers } = require('./sockets/socketHandler');
@@ -32,6 +33,17 @@ app.use(async (req, res, next) => {
   try {
     await connectDB();
   } catch (e) {}
+
+  // Guard API endpoints from hanging when database is not connected
+  if (req.path.startsWith('/api') && req.path !== '/api/health') {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        success: false,
+        message: 'Database connection unavailable. Please check that MONGODB_URI is set in Vercel and 0.0.0.0/0 is whitelisted in MongoDB Atlas Network Access.',
+      });
+    }
+  }
+
   next();
 });
 

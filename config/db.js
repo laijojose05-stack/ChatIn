@@ -1,30 +1,48 @@
 const mongoose = require('mongoose');
 
-let cachedConnection = null;
+// Global connection caching for serverless environments (Vercel)
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
 
 const connectDB = async () => {
-  if (cachedConnection && mongoose.connection.readyState === 1) {
-    return cachedConnection;
+  if (cached.conn && mongoose.connection.readyState === 1) {
+    return cached.conn;
   }
 
   const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/chatin';
 
-  try {
-    const conn = await mongoose.connect(mongoURI, {
+  if (!cached.promise) {
+    const opts = {
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
-    });
+    };
 
-    cachedConnection = conn;
-    const host = conn.connection?.host || conn.connections?.[0]?.host || 'MongoDB Atlas';
-    console.log(`✅ MongoDB Connected successfully: ${host}`);
-    return conn;
-  } catch (error) {
-    console.error(`❌ MongoDB Connection Error: ${error.message}`);
-    // In serverless environments, do not throw fatal exception to prevent 500 FUNCTION_INVOCATION_FAILED
+    cached.promise = mongoose
+      .connect(mongoURI, opts)
+      .then((conn) => {
+        const host = conn.connection?.host || conn.connections?.[0]?.host || 'MongoDB Atlas';
+        console.log(`✅ MongoDB Connected successfully: ${host}`);
+        return conn;
+      })
+      .catch((error) => {
+        console.error(`❌ MongoDB Connection Error: ${error.message}`);
+        cached.promise = null;
+        return null;
+      });
+  }
+
+  try {
+    cached.conn = await cached.promise;
+  } catch (err) {
+    cached.promise = null;
     return null;
   }
+
+  return cached.conn;
 };
 
 module.exports = connectDB;
