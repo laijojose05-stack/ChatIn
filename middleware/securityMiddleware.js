@@ -3,7 +3,8 @@ const rateLimit = require('express-rate-limit');
 // 1. General API Rate Limiter
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300,
+  max: 3000,
+  skip: (req) => req.method === 'GET', // Allow real-time message stream polling without rate limiting
   message: {
     success: false,
     message: 'Too many requests from this IP. Please try again later.',

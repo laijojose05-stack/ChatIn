@@ -1366,7 +1366,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function startActiveSync() {
     stopActiveSync();
-    activeSyncInterval = setInterval(syncActiveMessages, 2500);
+    activeSyncInterval = setInterval(syncActiveMessages, 1500);
   }
 
   function stopActiveSync() {
@@ -1377,22 +1377,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function syncActiveMessages() {
-    if (!activeConversation || isSyncingActive || document.hidden) return;
+    if (!activeConversation || isSyncingActive) return;
     isSyncingActive = true;
     try {
       const convId = activeConversation._id;
-      const allRows = messagesStream ? messagesStream.querySelectorAll('.message-row') : [];
-      let latestTime = null;
-      if (allRows.length > 0) {
-        const lastRow = allRows[allRows.length - 1];
-        latestTime = lastRow.dataset.time || null;
-      }
-
-      const url = latestTime
-        ? `/api/messages/${convId}?after=${encodeURIComponent(latestTime)}`
-        : `/api/messages/${convId}?limit=25`;
-
-      const res = await fetch(url);
+      // Fetch latest messages directly — eliminates any timestamp/timezone drift or clock skew
+      const res = await fetch(`/api/messages/${convId}?limit=35`);
       if (!res.ok) return;
       const data = await res.json();
       if (data.success && Array.isArray(data.data) && data.data.length > 0) {
@@ -1404,13 +1394,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let hasNew = false;
         data.data.forEach((msg) => {
-          if (!document.querySelector(`.message-row[data-id="${msg._id}"]`)) {
+          const existingRow = document.querySelector(`.message-row[data-id="${msg._id}"]`);
+          if (!existingRow) {
             appendMessageToView(msg);
             hasNew = true;
             const senderId = (msg.senderId?._id || msg.senderId || '').toString();
             const currentId = (currentUser._id || '').toString();
             if (senderId && senderId !== currentId) {
               playNotificationChime();
+            }
+          } else {
+            // Live update for deleted or edited messages
+            if (msg.deletedAt || msg.isDeleted) {
+              const textEl = existingRow.querySelector('.msg-text');
+              if (textEl && !textEl.classList.contains('fst-italic')) {
+                textEl.textContent = 'This message was deleted';
+                textEl.classList.add('fst-italic', 'opacity-75');
+                const att = existingRow.querySelector('.msg-img-attachment, a');
+                if (att) att.remove();
+              }
+            } else if (msg.content) {
+              const textEl = existingRow.querySelector('.msg-text');
+              if (textEl && textEl.textContent !== msg.content) {
+                textEl.textContent = msg.content;
+              }
             }
           }
         });
@@ -1423,7 +1430,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     } catch (e) {
-      // background polling - ignore transient network drops
+      // background polling - ignore transient drops
     } finally {
       isSyncingActive = false;
     }
@@ -1432,7 +1439,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function startConversationsSync() {
     if (conversationsSyncInterval) clearInterval(conversationsSyncInterval);
     conversationsSyncInterval = setInterval(async () => {
-      if (isSyncingConversations || document.hidden) return;
+      if (isSyncingConversations) return;
       isSyncingConversations = true;
       try {
         const res = await fetch('/api/conversations');
@@ -1453,7 +1460,12 @@ document.addEventListener('DOMContentLoaded', () => {
           }
           if (changed) {
             conversations = newConvs;
-            renderConversationsList();
+            renderFilteredConversations();
+            if (activeConversation) {
+              document.querySelectorAll('.conv-item').forEach((el) => {
+                el.classList.toggle('active', el.dataset.id === activeConversation._id);
+              });
+            }
           }
         }
       } catch (e) {
@@ -1461,7 +1473,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } finally {
         isSyncingConversations = false;
       }
-    }, 5000);
+    }, 2500);
   }
 
   // Start Real-Time Socket, Load Conversations, and Start Sync Timers
