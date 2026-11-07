@@ -845,15 +845,25 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 10. Modals: New Chat & User Search
+  // 10. Modals: New Chat & User Search (Exact Username Only)
   if (openNewChatBtn && newChatModalEl) {
     const showChatModal = () => {
       const modal = getModal(newChatModalEl);
       if (modal) modal.show();
       if (userSearchModalInput) {
         userSearchModalInput.value = '';
-        triggerUserSearch('');
       }
+      if (userSearchResults) {
+        userSearchResults.innerHTML = `
+          <div class="text-center text-muted small py-4">
+            <i class="bi bi-person-search fs-3 d-block mb-2 text-secondary"></i>
+            Enter an exact username to find a user.
+          </div>
+        `;
+      }
+      setTimeout(() => {
+        if (userSearchModalInput) userSearchModalInput.focus();
+      }, 150);
     };
 
     openNewChatBtn.addEventListener('click', showChatModal);
@@ -861,13 +871,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let searchTimeout;
     const triggerUserSearch = async (q) => {
-      if (userSearchResults) {
-        userSearchResults.innerHTML = '<div class="text-center text-muted small py-4">Searching...</div>';
+      if (!q) {
+        if (userSearchResults) {
+          userSearchResults.innerHTML = `
+            <div class="text-center text-muted small py-4">
+              <i class="bi bi-person-search fs-3 d-block mb-2 text-secondary"></i>
+              Enter an exact username to find a user.
+            </div>
+          `;
+        }
+        return;
       }
+
+      if (userSearchResults) {
+        userSearchResults.innerHTML = `
+          <div class="text-center text-muted small py-4">
+            <span class="spinner-border spinner-border-sm me-2 text-primary" role="status"></span>
+            Checking exact username...
+          </div>
+        `;
+      }
+
       try {
         const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`);
         const data = await res.json();
-        if (data.success && data.data.length > 0 && userSearchResults) {
+        if (data.success && data.data && data.data.length > 0 && userSearchResults) {
           userSearchResults.innerHTML = '';
           data.data.forEach((u) => {
             if (u._id === currentUser._id) return;
@@ -904,7 +932,13 @@ document.addEventListener('DOMContentLoaded', () => {
             userSearchResults.appendChild(row);
           });
         } else if (userSearchResults) {
-          userSearchResults.innerHTML = '<div class="text-center text-muted small py-4">No users found.</div>';
+          userSearchResults.innerHTML = `
+            <div class="text-center text-muted small py-4">
+              <i class="bi bi-person-x fs-3 d-block mb-2 text-secondary"></i>
+              No user found with exact username <strong>"${escapeHtml(q)}"</strong>.<br>
+              <span class="extra-small text-muted">Make sure the username is typed completely and correctly.</span>
+            </div>
+          `;
         }
       } catch (err) {
         if (userSearchResults) {
@@ -917,42 +951,41 @@ document.addEventListener('DOMContentLoaded', () => {
       userSearchModalInput.addEventListener('input', (e) => {
         clearTimeout(searchTimeout);
         const q = e.target.value.trim();
-        searchTimeout = setTimeout(() => triggerUserSearch(q), 250);
+        searchTimeout = setTimeout(() => triggerUserSearch(q), 300);
       });
     }
   }
 
   // 11. Modals: Create Group
   if (openNewGroupBtn && newGroupModalEl) {
-    openNewGroupBtn.addEventListener('click', async () => {
+    openNewGroupBtn.addEventListener('click', () => {
       const modal = getModal(newGroupModalEl);
       if (modal) modal.show();
 
-      try {
-        const res = await fetch('/api/users/search?q=');
-        const data = await res.json();
-        if (data.success && groupMemberList) {
-          groupMemberList.innerHTML = '';
-          const users = data.data || [];
-          if (users.length === 0) {
-            groupMemberList.innerHTML = '<div class="text-muted small text-center py-2">No other users found.</div>';
-          } else {
-            users.forEach((u) => {
-              if (u._id === currentUser._id) return;
-              const label = document.createElement('label');
-              label.className = 'd-flex align-items-center gap-2 p-1 small cursor-pointer member-item';
-              label.dataset.name = u.username.toLowerCase();
-              label.innerHTML = `
-                <input type="checkbox" name="members" value="${u._id}" class="form-check-input mt-0">
-                <span>${escapeHtml(u.username)}</span>
-              `;
-              groupMemberList.appendChild(label);
-            });
-          }
-        }
-      } catch (e) {
-        if (groupMemberList) {
-          groupMemberList.innerHTML = '<div class="text-danger small text-center py-2">Failed to load members.</div>';
+      if (groupMemberList) {
+        groupMemberList.innerHTML = '';
+        const contactMap = new Map();
+        (conversations || []).forEach((c) => {
+          (c.participants || []).forEach((p) => {
+            if (p && p._id && p._id !== currentUser._id) {
+              contactMap.set(p._id, p);
+            }
+          });
+        });
+        const users = Array.from(contactMap.values());
+        if (users.length === 0) {
+          groupMemberList.innerHTML = '<div class="text-muted small text-center py-2">No active contacts found. Start a direct chat first.</div>';
+        } else {
+          users.forEach((u) => {
+            const label = document.createElement('label');
+            label.className = 'd-flex align-items-center gap-2 p-1 small cursor-pointer member-item';
+            label.dataset.name = (u.username || '').toLowerCase();
+            label.innerHTML = `
+              <input type="checkbox" name="members" value="${u._id}" class="form-check-input mt-0">
+              <span>${escapeHtml(u.username)}</span>
+            `;
+            groupMemberList.appendChild(label);
+          });
         }
       }
     });

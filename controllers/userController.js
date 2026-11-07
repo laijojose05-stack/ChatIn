@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 
-// @desc    Search user by username or email
+// @desc    Search user by exact username or email (only full exact match)
 // @route   GET /api/users/search or GET /api/users?search=username
 // @access  Private
 const searchUsers = async (req, res, next) => {
@@ -10,38 +10,32 @@ const searchUsers = async (req, res, next) => {
     const rawSearch = (req.query.search || req.query.q || '').trim();
     const search = rawSearch.replace(/^@/, '');
 
+    // Strict Privacy Requirement:
+    // Only show users when their username or email is entered correctly and completely.
+    // Never list or leak users on empty query.
+    if (!search) {
+      return res.json({ success: true, count: 0, data: [] });
+    }
+
     const testFilter = {
       username: { $not: /^user_\d{10,}$/i, $nin: [/^testuser_/i] },
       email: { $not: /@example\.com$/i },
     };
 
-    // If query is empty, return a list of recent active users (excluding current user and automated test accounts)
-    if (!search) {
-      const users = await User.find({
-        _id: { $ne: req.user._id },
-        ...testFilter,
-      })
-        .select('username email profilePicture bio isOnline lastSeen')
-        .sort({ isOnline: -1, lastSeen: -1 })
-        .limit(50);
-
-      return res.json({ success: true, count: users.length, data: users });
-    }
-
-    // Escape regex characters for safe query
+    // Escape regex characters for safe exact query
     const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-    // Case-insensitive substring match
+    // Case-insensitive EXACT match: ^...$
     const users = await User.find({
       _id: { $ne: req.user._id },
       ...testFilter,
       $or: [
-        { username: { $regex: escaped, $options: 'i' } },
-        { email: { $regex: escaped, $options: 'i' } },
+        { username: { $regex: `^${escaped}$`, $options: 'i' } },
+        { email: { $regex: `^${escaped}$`, $options: 'i' } },
       ],
     })
       .select('username email profilePicture bio isOnline lastSeen')
-      .limit(20);
+      .limit(10);
 
     res.json({ success: true, count: users.length, data: users });
   } catch (error) {
