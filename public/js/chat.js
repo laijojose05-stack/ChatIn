@@ -110,19 +110,40 @@ document.addEventListener('DOMContentLoaded', () => {
       handleIncomingMessage(msg);
     });
 
-    // Message read receipts
+    // WhatsApp Delivery Receipt (turns Single Tick into Double Gray Ticks)
+    socket.on('message_delivered', ({ conversationId, messageId }) => {
+      if (activeConversation && activeConversation._id === conversationId) {
+        if (messageId) {
+          const tick = document.getElementById(`tick-${messageId}`);
+          if (tick && !tick.classList.contains('text-info')) {
+            tick.className = 'bi bi-check2-all text-secondary';
+            tick.title = 'Delivered';
+          }
+        } else {
+          document.querySelectorAll('.message-row.sent .bi-check2').forEach((tick) => {
+            tick.className = 'bi bi-check2-all text-secondary';
+            tick.title = 'Delivered';
+          });
+        }
+      }
+    });
+
+    // WhatsApp Read Receipt (turns Ticks into Double Blue Ticks)
     socket.on('message_read', ({ conversationId, messageIds, messageId }) => {
       if (activeConversation && activeConversation._id === conversationId) {
         const ids = messageIds || (messageId ? [messageId] : []);
         if (ids.length > 0) {
           ids.forEach((mId) => {
             const tick = document.getElementById(`tick-${mId}`);
-            if (tick) tick.className = 'bi bi-check2-all text-info';
+            if (tick) {
+              tick.className = 'bi bi-check2-all text-info';
+              tick.title = 'Read';
+            }
           });
         } else {
-          // Mark all sent ticks in this conversation as read
-          document.querySelectorAll('.message-row.sent .bi-check2').forEach((tick) => {
+          document.querySelectorAll('.message-row.sent .bi-check2, .message-row.sent .bi-check2-all').forEach((tick) => {
             tick.className = 'bi bi-check2-all text-info';
+            tick.title = 'Read';
           });
         }
       }
@@ -469,12 +490,75 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    // Read tick for sender
-    let tickHtml = '';
-    if (isMine) {
-      const isRead = msg.readBy && msg.readBy.length > 1;
-      tickHtml = `<i id="tick-${msg._id}" class="bi ${isRead ? 'bi-check2-all text-info' : 'bi-check2'}"></i>`;
+  // WhatsApp Algorithm: 4-State Receipt Ticks (Clock -> Sent ✓ -> Delivered ✓✓ -> Read ✓✓)
+  function getTickHtml(msg, isMine) {
+    if (!isMine) return '';
+    if (msg.status === 'pending' || (typeof msg._id === 'string' && msg._id.startsWith('temp_'))) {
+      return `<i id="tick-${msg._id}" class="bi bi-clock opacity-75" title="Sending..."></i>`;
     }
+    const isRead = msg.readBy && msg.readBy.length > 1;
+    if (isRead) {
+      return `<i id="tick-${msg._id}" class="bi bi-check2-all text-info" title="Read"></i>`;
+    }
+    const isDelivered = msg.deliveredTo && msg.deliveredTo.length > 1;
+    if (isDelivered) {
+      return `<i id="tick-${msg._id}" class="bi bi-check2-all text-secondary" title="Delivered"></i>`;
+    }
+    return `<i id="tick-${msg._id}" class="bi bi-check2 text-secondary" title="Sent to server"></i>`;
+  }
+
+  function appendMessageToView(msg) {
+    if (!messagesStream) return;
+
+    // Deduplication check: if message already rendered, don't append again
+    if (msg._id && document.querySelector(`.message-row[data-id="${msg._id}"]`)) {
+      return;
+    }
+
+    const senderId = msg.senderId?._id || msg.senderId || msg.sender?._id || msg.sender;
+    const senderIdStr = senderId ? senderId.toString() : '';
+    const currentUserIdStr = (currentUser._id || '').toString();
+    const isMine = senderIdStr === currentUserIdStr;
+
+    const time = formatTimestamp(msg.createdAt);
+    const isGrp = activeConversation && isGroupConv(activeConversation);
+    const senderUsername = msg.senderId?.username || msg.sender?.username;
+    const senderName = !isMine && isGrp && senderUsername ? senderUsername : '';
+
+    const row = document.createElement('div');
+    row.className = `message-row ${isMine ? 'sent' : 'received'}`;
+    if (msg._id) row.dataset.id = msg._id;
+    if (msg.createdAt) row.dataset.time = msg.createdAt;
+
+    // Handle attachments
+    let attachmentHtml = '';
+    const rawAttachments = msg.attachments ? (Array.isArray(msg.attachments) ? msg.attachments.flat() : [msg.attachments]) : [];
+    if (rawAttachments.length > 0) {
+      const att = rawAttachments[0];
+      const fileUrl = att.url || att.fileUrl || '';
+      const fileName = att.originalName || att.fileName || 'Attachment';
+      const mimeType = att.mimeType || att.fileType || '';
+      const isImg = mimeType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileUrl);
+
+      if (fileUrl) {
+        if (isImg) {
+          attachmentHtml = `<img src="${fileUrl}" class="msg-img-attachment" alt="${escapeHtml(fileName)}" onclick="window.open('${fileUrl}', '_blank')">`;
+        } else {
+          attachmentHtml = `
+            <a href="${fileUrl}" target="_blank" download="${escapeHtml(fileName)}" class="msg-file-attachment d-flex align-items-center gap-2 p-2 rounded-2 text-decoration-none">
+              <i class="bi bi-file-earmark-arrow-down fs-4"></i>
+              <div class="overflow-hidden">
+                <div class="text-truncate fw-semibold small">${escapeHtml(fileName)}</div>
+                <div class="extra-small opacity-75">Click to download</div>
+              </div>
+            </a>
+          `;
+        }
+      }
+    }
+
+    // Read tick for sender
+    const tickHtml = getTickHtml(msg, isMine);
 
     const isDeleted = Boolean(msg.deletedAt || msg.isDeleted);
     const contentText = isDeleted ? 'This message was deleted' : (msg.content || '');
@@ -494,7 +578,7 @@ document.addEventListener('DOMContentLoaded', () => {
     messagesStream.appendChild(row);
   }
 
-  // 5. Send Message Handler
+  // 5. WhatsApp Algorithm: Optimistic UI Send Message Handler
   if (messageForm) {
     messageForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -502,14 +586,32 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!text && !pendingAttachment) return;
       if (!activeConversation) return;
 
-      const payload = {
+      const currentAttach = pendingAttachment
+        ? (Array.isArray(pendingAttachment) ? pendingAttachment : [pendingAttachment])
+        : [];
+
+      // 1. WhatsApp Instant UI: Append message immediately in 0ms with pending clock icon
+      const tempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+      const optimisticMsg = {
+        _id: tempId,
         conversationId: activeConversation._id,
+        senderId: currentUser,
         content: text,
-        attachments: pendingAttachment
-          ? (Array.isArray(pendingAttachment) ? pendingAttachment : [pendingAttachment])
-          : [],
+        attachments: currentAttach,
+        createdAt: new Date().toISOString(),
+        status: 'pending',
       };
 
+      const emptyStatePlaceholder = messagesStream?.querySelector('.text-muted.small.py-5');
+      if (emptyStatePlaceholder) {
+        messagesStream.innerHTML = '';
+      }
+
+      appendMessageToView(optimisticMsg);
+      scrollToBottom();
+      updateSidebarSnippet(activeConversation._id, text || 'Sent an attachment');
+
+      // Clear input immediately so user can continue typing without delay
       if (messageInput) messageInput.value = '';
       clearPendingAttachment();
 
@@ -517,6 +619,12 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.emit('stop_typing', { conversationId: activeConversation._id });
         socket.emit('typing_stop', { conversationId: activeConversation._id });
       }
+
+      const payload = {
+        conversationId: activeConversation._id,
+        content: text,
+        attachments: currentAttach,
+      };
 
       try {
         const res = await fetch('/api/messages', {
@@ -526,16 +634,37 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const data = await res.json();
-        if (data.success) {
-          appendMessageToView(data.data);
-          scrollToBottom();
-          updateSidebarSnippet(activeConversation._id, data.data.content || 'Sent an attachment');
+        if (data.success && data.data) {
+          // WhatsApp Delivery Algorithm: Swap temp ID to permanent server ID & update tick to single checkmark
+          const tempRow = document.querySelector(`.message-row[data-id="${tempId}"]`);
+          if (tempRow) {
+            tempRow.dataset.id = data.data._id;
+            tempRow.dataset.time = data.data.createdAt;
+            const oldTick = tempRow.querySelector(`#tick-${tempId}`);
+            if (oldTick) {
+              oldTick.id = `tick-${data.data._id}`;
+              oldTick.outerHTML = getTickHtml(data.data, true);
+            }
+          }
+
           if (socket && socket.connected) {
             socket.emit('send_message', { conversationId: activeConversation._id, message: data.data });
+          }
+        } else {
+          // Delivery failed: show retry icon
+          const tempRow = document.querySelector(`.message-row[data-id="${tempId}"]`);
+          if (tempRow) {
+            const tick = tempRow.querySelector(`#tick-${tempId}`);
+            if (tick) tick.className = 'bi bi-exclamation-circle text-danger';
           }
         }
       } catch (err) {
         console.error('Failed to send message:', err);
+        const tempRow = document.querySelector(`.message-row[data-id="${tempId}"]`);
+        if (tempRow) {
+          const tick = tempRow.querySelector(`#tick-${tempId}`);
+          if (tick) tick.className = 'bi bi-exclamation-circle text-danger';
+        }
       }
     });
   }
@@ -1366,7 +1495,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function startActiveSync() {
     stopActiveSync();
-    activeSyncInterval = setInterval(syncActiveMessages, 1500);
+    activeSyncInterval = setInterval(syncActiveMessages, 1000);
   }
 
   function stopActiveSync() {
@@ -1393,17 +1522,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         let hasNew = false;
+        let hasUnreadIncoming = false;
+        const currentId = (currentUser._id || '').toString();
+
         data.data.forEach((msg) => {
           const existingRow = document.querySelector(`.message-row[data-id="${msg._id}"]`);
+          const senderId = (msg.senderId?._id || msg.senderId || '').toString();
+          const isMine = senderId === currentId;
+
           if (!existingRow) {
             appendMessageToView(msg);
             hasNew = true;
-            const senderId = (msg.senderId?._id || msg.senderId || '').toString();
-            const currentId = (currentUser._id || '').toString();
-            if (senderId && senderId !== currentId) {
+            if (!isMine) {
+              hasUnreadIncoming = true;
               playNotificationChime();
             }
           } else {
+            // Live WhatsApp tick updates for sender
+            if (isMine) {
+              const oldTick = existingRow.querySelector(`#tick-${msg._id}`);
+              if (oldTick) {
+                const freshTickHtml = getTickHtml(msg, true);
+                if (oldTick.outerHTML !== freshTickHtml) {
+                  oldTick.outerHTML = freshTickHtml;
+                }
+              }
+            }
+
             // Live update for deleted or edited messages
             if (msg.deletedAt || msg.isDeleted) {
               const textEl = existingRow.querySelector('.msg-text');
@@ -1422,11 +1567,20 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         });
 
+        // WhatsApp 2-way ACK: If new incoming messages arrived, confirm delivery & read status
         if (hasNew) {
           scrollToBottom();
-          fetch(`/api/messages/${convId}/read`, { method: 'POST' }).catch(() => {});
           const latest = data.data[data.data.length - 1];
           updateSidebarSnippet(convId, latest.content || 'Sent an attachment');
+        }
+
+        if (hasUnreadIncoming) {
+          fetch(`/api/messages/${convId}/delivered`, { method: 'POST' }).catch(() => {});
+          fetch(`/api/messages/${convId}/read`, { method: 'POST' }).catch(() => {});
+          if (socket && socket.connected) {
+            socket.emit('message_delivered', { conversationId: convId });
+            socket.emit('message_read', { conversationId: convId });
+          }
         }
       }
     } catch (e) {
@@ -1466,6 +1620,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 el.classList.toggle('active', el.dataset.id === activeConversation._id);
               });
             }
+            // WhatsApp Delivery Receipt: Auto-acknowledge delivery for unread messages (turns sender single tick to double tick)
+            newConvs.forEach((c) => {
+              if (c.unreadCount > 0 && (!activeConversation || activeConversation._id !== c._id)) {
+                fetch(`/api/messages/${c._id}/delivered`, { method: 'POST' }).catch(() => {});
+              }
+            });
           }
         }
       } catch (e) {

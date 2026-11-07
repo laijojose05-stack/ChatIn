@@ -6,6 +6,7 @@ const {
   editMessage,
   deleteMessage,
   markAsRead,
+  markAsDelivered,
   uploadAttachments,
 } = require('../controllers/messageController');
 const { protect } = require('../middleware/authMiddleware');
@@ -17,6 +18,7 @@ router.post('/', protect, messageLimiter, sanitizeMessage, sendMessage);
 router.put('/:id', protect, sanitizeMessage, editMessage);
 router.delete('/:id', protect, deleteMessage);
 router.post('/:conversationId/read', protect, markAsRead);
+router.post('/:conversationId/delivered', protect, markAsDelivered);
 router.post('/upload', protect, upload.any(), uploadAttachments);
 
 module.exports = router;

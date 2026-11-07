@@ -370,6 +370,21 @@
   color: rgba(255, 255, 255, 0.85);
 }
 
+/* WhatsApp Receipt Ticks */
+.msg-meta .bi-check2,
+.msg-meta .bi-clock {
+  opacity: 0.75;
+}
+
+.msg-meta .bi-check2-all.text-secondary {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.msg-meta .bi-check2-all.text-info {
+  color: #38bdf8 !important; /* WhatsApp Iconic Blue Read Ticks */
+  text-shadow: 0 0 6px rgba(56, 189, 248, 0.4);
+}
+
 .msg-img-attachment {
   max-width: 280px;
   border-radius: var(--radius-sm);

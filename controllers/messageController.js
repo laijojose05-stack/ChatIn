@@ -333,6 +333,46 @@ const markAsRead = async (req, res, next) => {
   }
 };
 
+// @desc    Mark conversation messages as delivered (WhatsApp 2-tick receipt)
+// @route   POST /api/messages/:conversationId/delivered
+// @access  Private
+const markAsDelivered = async (req, res, next) => {
+  try {
+    const { conversationId } = req.params;
+    const { messageIds } = req.body;
+    const currentUserId = req.user._id;
+
+    const query = {
+      conversationId,
+      senderId: { $ne: currentUserId },
+      'deliveredTo.user': { $ne: currentUserId },
+    };
+    if (Array.isArray(messageIds) && messageIds.length > 0) {
+      query._id = { $in: messageIds };
+    }
+
+    const result = await Message.updateMany(query, {
+      $addToSet: {
+        deliveredTo: { user: currentUserId, deliveredAt: new Date() },
+      },
+    });
+
+    // Broadcast delivery receipt event via Socket.IO
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`conv:${conversationId}`).emit('message_delivered', {
+        conversationId,
+        deliveredToUserId: currentUserId.toString(),
+        deliveredAt: new Date(),
+      });
+    }
+
+    res.json({ success: true, deliveredCount: result.modifiedCount });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Upload message attachments
 // @route   POST /api/messages/upload
 // @access  Private
@@ -381,5 +421,6 @@ module.exports = {
   editMessage,
   deleteMessage,
   markAsRead,
+  markAsDelivered,
   uploadAttachments,
 };
