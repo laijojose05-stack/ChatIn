@@ -488,53 +488,6 @@ document.addEventListener('DOMContentLoaded', () => {
     scrollToBottom();
   }
 
-  function appendMessageToView(msg) {
-    if (!messagesStream) return;
-
-    // Deduplication check: if message already rendered, don't append again
-    if (msg._id && document.querySelector(`.message-row[data-id="${msg._id}"]`)) {
-      return;
-    }
-
-    const senderId = msg.senderId?._id || msg.senderId || msg.sender?._id || msg.sender;
-    const senderIdStr = senderId ? senderId.toString() : '';
-    const currentUserIdStr = (currentUser._id || '').toString();
-    const isMine = senderIdStr === currentUserIdStr;
-
-    const time = formatTimestamp(msg.createdAt);
-    const isGrp = activeConversation && isGroupConv(activeConversation);
-    const senderUsername = msg.senderId?.username || msg.sender?.username;
-    const senderName = !isMine && isGrp && senderUsername ? senderUsername : '';
-
-    const row = document.createElement('div');
-    row.className = `message-row ${isMine ? 'sent' : 'received'}`;
-    if (msg._id) row.dataset.id = msg._id;
-    if (msg.createdAt) row.dataset.time = msg.createdAt;
-
-    // Handle attachments
-    let attachmentHtml = '';
-    const rawAttachments = msg.attachments ? (Array.isArray(msg.attachments) ? msg.attachments.flat() : [msg.attachments]) : [];
-    if (rawAttachments.length > 0) {
-      const att = rawAttachments[0];
-      const fileUrl = att.url || att.fileUrl || '';
-      const fileName = att.originalName || att.fileName || 'Attachment';
-      const mimeType = att.mimeType || att.fileType || '';
-      const isImg = mimeType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileUrl);
-
-      if (fileUrl) {
-        if (isImg) {
-          attachmentHtml = `<img src="${fileUrl}" class="msg-img-attachment" alt="${escapeHtml(fileName)}" onclick="window.open('${fileUrl}', '_blank')">`;
-        } else {
-          attachmentHtml = `
-            <a href="${fileUrl}" target="_blank" class="d-flex align-items-center gap-2 p-2 mb-2 rounded bg-black bg-opacity-25 text-white text-decoration-none">
-              <i class="bi bi-file-earmark-arrow-down fs-5"></i>
-              <span class="small text-truncate">${escapeHtml(fileName)}</span>
-            </a>
-          `;
-        }
-      }
-    }
-
   // WhatsApp Algorithm: 4-State Receipt Ticks (Clock -> Sent ✓ -> Delivered ✓✓ -> Read ✓✓)
   function getTickHtml(msg, isMine) {
     if (!isMine) return '';
