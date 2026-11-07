@@ -1107,7 +1107,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Bulletproof Master-Detail Settings Tab Switching
+  // Native Mobile Drilldown Navigation for Settings (WhatsApp / iOS Pattern)
+  const settingsModalBody = document.querySelector('.settings-modal-body');
+  const settingsMobileBackBtn = document.getElementById('settingsMobileBackBtn');
+  const settingsModalLabel = document.getElementById('settingsModalLabel');
+  const settingsModalSub = document.getElementById('settingsModalSub');
+
+  const resetMobileSettingsView = () => {
+    if (settingsModalBody) settingsModalBody.classList.remove('mobile-in-detail');
+    if (settingsMobileBackBtn) settingsMobileBackBtn.classList.add('d-none');
+    if (settingsModalLabel) settingsModalLabel.textContent = 'Settings';
+    if (settingsModalSub) settingsModalSub.textContent = 'Manage your account and preferences';
+  };
+
+  if (settingsMobileBackBtn) {
+    settingsMobileBackBtn.addEventListener('click', resetMobileSettingsView);
+  }
+
+  if (settingsModalEl) {
+    settingsModalEl.addEventListener('show.bs.modal', resetMobileSettingsView);
+  }
+
+  // Master-Detail & Mobile Drilldown Tab Switching
   const settingsNavButtons = document.querySelectorAll('.settings-nav-item[data-settings-tab]');
   const settingsTabPanes = document.querySelectorAll('.settings-content-pane .tab-pane');
 
@@ -1123,6 +1144,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
       settingsTabPanes.forEach((p) => p.classList.remove('show', 'active'));
       targetPane.classList.add('show', 'active');
+
+      // Native Mobile Approach: Drilldown into full detail screen with back button
+      if (window.innerWidth <= 768) {
+        if (settingsModalBody) settingsModalBody.classList.add('mobile-in-detail');
+        if (settingsMobileBackBtn) settingsMobileBackBtn.classList.remove('d-none');
+        const title = btn.getAttribute('data-settings-title') || btn.querySelector('span')?.textContent || 'Settings';
+        if (settingsModalLabel) settingsModalLabel.textContent = title;
+        if (settingsModalSub) settingsModalSub.textContent = 'Tap ‹ Settings to return';
+      }
     });
   });
 
