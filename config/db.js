@@ -22,9 +22,8 @@ const connectDB = async () => {
     return conn;
   } catch (error) {
     console.error(`❌ MongoDB Connection Error: ${error.message}`);
-    if (process.env.NODE_ENV === 'production') {
-      throw error;
-    }
+    // In serverless environments, do not throw fatal exception to prevent 500 FUNCTION_INVOCATION_FAILED
+    return null;
   }
 };
 

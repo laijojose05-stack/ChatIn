@@ -27,6 +27,14 @@ const server = http.createServer(app);
 // Connect to Database
 connectDB();
 
+// Ensure DB is connected for serverless invocations (Vercel)
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+  } catch (e) {}
+  next();
+});
+
 // View Engine (EJS)
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -99,4 +107,7 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, server, PORT };
+module.exports = app;
+module.exports.app = app;
+module.exports.server = server;
+module.exports.PORT = PORT;
