@@ -821,6 +821,49 @@
   </div>
 </div>
 
+<!-- MOBILE BOTTOM SHEET: MESSAGE CONTEXT OPTIONS & QUICK REACTIONS -->
+<div class="mobile-action-sheet-backdrop d-none" id="mobileMsgSheetBackdrop">
+  <div class="mobile-msg-action-sheet" id="mobileMsgActionSheet">
+    <div class="sheet-drag-handle mx-auto mb-3"></div>
+
+    <!-- Quick Reactions Row -->
+    <div class="mobile-sheet-reactions d-flex justify-content-between align-items-center mb-3 px-2 py-2 rounded-4 bg-body-tertiary">
+      <button type="button" class="mobile-sheet-reaction-btn" data-emoji="👍">👍</button>
+      <button type="button" class="mobile-sheet-reaction-btn" data-emoji="❤️">❤️</button>
+      <button type="button" class="mobile-sheet-reaction-btn" data-emoji="😂">😂</button>
+      <button type="button" class="mobile-sheet-reaction-btn" data-emoji="🔥">🔥</button>
+      <button type="button" class="mobile-sheet-reaction-btn" data-emoji="😮">😮</button>
+      <button type="button" class="mobile-sheet-reaction-btn" data-emoji="😢">😢</button>
+      <button type="button" class="mobile-sheet-reaction-btn" data-emoji="👏">👏</button>
+      <button type="button" class="mobile-sheet-reaction-btn" data-emoji="🎉">🎉</button>
+    </div>
+
+    <!-- Actions List -->
+    <div class="mobile-sheet-actions-list d-flex flex-column gap-1">
+      <button type="button" class="mobile-sheet-action-item" id="sheetReplyBtn">
+        <i class="bi bi-reply-fill text-primary fs-5"></i>
+        <span>Reply to Message</span>
+      </button>
+      <button type="button" class="mobile-sheet-action-item" id="sheetCopyBtn">
+        <i class="bi bi-clipboard fs-5"></i>
+        <span>Copy Message Text</span>
+      </button>
+      <button type="button" class="mobile-sheet-action-item d-none" id="sheetMediaBtn">
+        <i class="bi bi-box-arrow-up-right text-info fs-5"></i>
+        <span>View Attachment</span>
+      </button>
+      <button type="button" class="mobile-sheet-action-item text-danger d-none" id="sheetDeleteBtn">
+        <i class="bi bi-trash3 text-danger fs-5"></i>
+        <span class="text-danger fw-semibold">Delete for Everyone</span>
+      </button>
+    </div>
+
+    <button type="button" class="btn btn-outline-secondary w-100 rounded-pill py-2 mt-3 fw-semibold" id="sheetCancelBtn">
+      Cancel
+    </button>
+  </div>
+</div>
+
 <!-- Socket.IO Client Library -->
 <script src="/socket.io/socket.io.js"></script>
 <!-- Client-side Chat Logic -->

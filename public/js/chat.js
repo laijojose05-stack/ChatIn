@@ -1181,6 +1181,235 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // ==========================================================================
+  // Mobile Message Gestures: Swipe Left-to-Right Reply & Press-and-Hold Sheet
+  // ==========================================================================
+  const mobileMsgSheetBackdrop = document.getElementById('mobileMsgSheetBackdrop');
+  const sheetReplyBtn = document.getElementById('sheetReplyBtn');
+  const sheetCopyBtn = document.getElementById('sheetCopyBtn');
+  const sheetMediaBtn = document.getElementById('sheetMediaBtn');
+  const sheetDeleteBtn = document.getElementById('sheetDeleteBtn');
+  const sheetCancelBtn = document.getElementById('sheetCancelBtn');
+  let currentSheetMessage = null;
+
+  function openMobileMessageActionSheet(data) {
+    currentSheetMessage = data;
+    if (!mobileMsgSheetBackdrop) return;
+
+    if (sheetDeleteBtn) {
+      if (data.isMine && !data.isDeleted) {
+        sheetDeleteBtn.classList.remove('d-none');
+      } else {
+        sheetDeleteBtn.classList.add('d-none');
+      }
+    }
+
+    if (sheetMediaBtn) {
+      if (data.hasMedia && data.mediaUrl) {
+        sheetMediaBtn.classList.remove('d-none');
+      } else {
+        sheetMediaBtn.classList.add('d-none');
+      }
+    }
+
+    mobileMsgSheetBackdrop.classList.remove('d-none');
+    void mobileMsgSheetBackdrop.offsetWidth; // Reflow for transition
+    mobileMsgSheetBackdrop.classList.add('show');
+  }
+
+  function closeMobileMessageActionSheet() {
+    if (!mobileMsgSheetBackdrop) return;
+    mobileMsgSheetBackdrop.classList.remove('show');
+    setTimeout(() => {
+      mobileMsgSheetBackdrop.classList.add('d-none');
+      currentSheetMessage = null;
+    }, 220);
+  }
+
+  if (mobileMsgSheetBackdrop) {
+    mobileMsgSheetBackdrop.addEventListener('click', (e) => {
+      if (e.target === mobileMsgSheetBackdrop) {
+        closeMobileMessageActionSheet();
+      }
+    });
+  }
+
+  if (sheetCancelBtn) {
+    sheetCancelBtn.addEventListener('click', closeMobileMessageActionSheet);
+  }
+
+  // Quick reactions inside mobile action sheet
+  document.querySelectorAll('.mobile-sheet-reaction-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const emoji = btn.dataset.emoji;
+      if (currentSheetMessage && currentSheetMessage.id && emoji) {
+        window.toggleReaction(currentSheetMessage.id, emoji);
+      }
+      closeMobileMessageActionSheet();
+    });
+  });
+
+  if (sheetReplyBtn) {
+    sheetReplyBtn.addEventListener('click', () => {
+      if (currentSheetMessage) {
+        window.startReplyToMessage(currentSheetMessage.id, currentSheetMessage.sender, currentSheetMessage.text);
+      }
+      closeMobileMessageActionSheet();
+    });
+  }
+
+  if (sheetCopyBtn) {
+    sheetCopyBtn.addEventListener('click', () => {
+      if (currentSheetMessage && currentSheetMessage.text) {
+        window.copyMessageText(currentSheetMessage.text);
+      }
+      closeMobileMessageActionSheet();
+    });
+  }
+
+  if (sheetMediaBtn) {
+    sheetMediaBtn.addEventListener('click', () => {
+      if (currentSheetMessage && currentSheetMessage.mediaUrl) {
+        window.open(currentSheetMessage.mediaUrl, '_blank');
+      }
+      closeMobileMessageActionSheet();
+    });
+  }
+
+  if (sheetDeleteBtn) {
+    sheetDeleteBtn.addEventListener('click', () => {
+      if (currentSheetMessage && currentSheetMessage.id) {
+        window.deleteMessageById(currentSheetMessage.id);
+      }
+      closeMobileMessageActionSheet();
+    });
+  }
+
+  // Attach touch listeners to message row (Swipe Right + Long Press)
+  function attachMobileMessageGestures(row, msg, senderName, contentText, isMine, isDeleted) {
+    const bubble = row.querySelector('.message-bubble');
+    const swipeIcon = row.querySelector('.msg-swipe-reply-icon');
+    if (!bubble) return;
+
+    let startX = 0;
+    let startY = 0;
+    let currentX = 0;
+    let currentY = 0;
+    let isHorizontalSwipe = false;
+    let isLongPressTriggered = false;
+    let longPressTimer = null;
+    const SWIPE_THRESHOLD = 40; // px threshold to trigger reply
+    const MAX_DRAG = 55; // maximum visual drag px
+
+    const cleanSender = escapeHtml(senderName || (isMine ? 'You' : 'User'));
+    const cleanText = escapeHtml((contentText || '').replace(/['"]/g, ''));
+
+    function onLongPress() {
+      isLongPressTriggered = true;
+      if (navigator.vibrate) {
+        try { navigator.vibrate(25); } catch (e) {}
+      }
+      openMobileMessageActionSheet({
+        id: msg._id,
+        sender: cleanSender,
+        text: cleanText,
+        isMine,
+        isDeleted,
+        hasMedia: !!row.querySelector('.msg-img-attachment'),
+        mediaUrl: row.querySelector('.msg-img-attachment')?.src || '',
+      });
+    }
+
+    bubble.addEventListener('touchstart', (e) => {
+      if (isDeleted || !msg._id || msg._id.toString().startsWith('temp_')) return;
+      if (e.touches.length !== 1) return;
+
+      const touch = e.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      currentX = startX;
+      currentY = startY;
+      isHorizontalSwipe = false;
+      isLongPressTriggered = false;
+
+      clearTimeout(longPressTimer);
+      longPressTimer = setTimeout(onLongPress, 420);
+
+      bubble.classList.remove('snap-back');
+    }, { passive: true });
+
+    bubble.addEventListener('touchmove', (e) => {
+      if (isDeleted || !msg._id) return;
+      if (e.touches.length !== 1) return;
+
+      const touch = e.touches[0];
+      currentX = touch.clientX;
+      currentY = touch.clientY;
+      const diffX = currentX - startX;
+      const diffY = currentY - startY;
+
+      // Cancel long press if finger moved
+      if (Math.hypot(diffX, diffY) > 8) {
+        clearTimeout(longPressTimer);
+      }
+
+      if (isLongPressTriggered) return;
+
+      // Determine swipe direction: swipe from left to right (diffX > 0)
+      if (!isHorizontalSwipe) {
+        if (diffX > 10 && Math.abs(diffX) > Math.abs(diffY)) {
+          isHorizontalSwipe = true;
+        }
+      }
+
+      if (isHorizontalSwipe && diffX > 0) {
+        if (e.cancelable) e.preventDefault();
+
+        bubble.classList.add('swiping');
+        const dragDist = Math.min(diffX * 0.55, MAX_DRAG);
+        bubble.style.transform = `translateX(${dragDist}px)`;
+
+        if (swipeIcon) {
+          if (dragDist >= SWIPE_THRESHOLD) {
+            swipeIcon.classList.add('ready');
+            swipeIcon.style.opacity = '1';
+          } else {
+            swipeIcon.classList.remove('ready');
+            swipeIcon.style.opacity = `${Math.min(dragDist / SWIPE_THRESHOLD, 0.9)}`;
+          }
+        }
+      }
+    }, { passive: false });
+
+    const handleTouchEnd = () => {
+      clearTimeout(longPressTimer);
+      if (isLongPressTriggered) return;
+
+      const diffX = currentX - startX;
+      bubble.classList.remove('swiping');
+      bubble.classList.add('snap-back');
+      bubble.style.transform = 'translateX(0px)';
+
+      if (swipeIcon) {
+        swipeIcon.classList.remove('ready');
+        swipeIcon.style.opacity = '0';
+      }
+
+      // If user swiped past threshold from left to right, trigger reply!
+      if (isHorizontalSwipe && diffX >= SWIPE_THRESHOLD && !isDeleted) {
+        if (navigator.vibrate) {
+          try { navigator.vibrate(15); } catch (e) {}
+        }
+        window.startReplyToMessage(msg._id, cleanSender, cleanText);
+      }
+
+      isHorizontalSwipe = false;
+    };
+
+    bubble.addEventListener('touchend', handleTouchEnd);
+    bubble.addEventListener('touchcancel', handleTouchEnd);
+  }
+
   function appendMessageToView(msg) {
     if (!messagesStream) return;
 
@@ -1310,6 +1539,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     row.innerHTML = `
       <div class="message-bubble-wrapper">
+        <div class="msg-swipe-reply-icon"><i class="bi bi-reply-fill"></i></div>
         <div class="message-bubble ${isDeleted ? 'opacity-75' : ''}">
           ${replyQuoteHtml}
           ${senderName ? `<div class="msg-sender-name">${escapeHtml(senderName)}</div>` : ''}
@@ -1324,6 +1554,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ${actionsHtml}
       </div>
     `;
+
+    // Attach mobile swipe-to-reply and press-and-hold options
+    attachMobileMessageGestures(row, msg, senderName, contentText, isMine, isDeleted);
 
     messagesStream.appendChild(row);
   }

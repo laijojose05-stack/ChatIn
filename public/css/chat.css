@@ -1409,3 +1409,138 @@
     z-index: 1050 !important;
   }
 }
+
+/* ==========================================================================
+   Mobile Swipe-to-Reply & Press-and-Hold Action Sheet
+   ========================================================================== */
+
+/* Swipe Reply Indicator */
+.msg-swipe-reply-icon {
+  position: absolute;
+  left: -38px;
+  top: 50%;
+  transform: translateY(-50%) scale(0.6);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease;
+  box-shadow: 0 2px 8px var(--accent-glow);
+  z-index: 5;
+}
+
+.msg-swipe-reply-icon.ready {
+  opacity: 1;
+  transform: translateY(-50%) scale(1.15);
+  background: #22c55e !important;
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.6) !important;
+}
+
+.message-bubble {
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.message-bubble.swiping {
+  transition: none !important;
+}
+
+.message-bubble.snap-back {
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Mobile Long-Press Bottom Sheet */
+.mobile-action-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 1060;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.mobile-action-sheet-backdrop.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.mobile-msg-action-sheet {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  border-radius: 24px 24px 0 0;
+  padding: 12px 18px max(18px, env(safe-area-inset-bottom, 18px)) 18px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.5);
+  transform: translateY(100%);
+  transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mobile-action-sheet-backdrop.show .mobile-msg-action-sheet {
+  transform: translateY(0);
+}
+
+.sheet-drag-handle {
+  width: 44px;
+  height: 5px;
+  border-radius: 9999px;
+  background: var(--border-color);
+  opacity: 0.8;
+}
+
+.mobile-sheet-reactions {
+  border: 1px solid var(--border-color);
+}
+
+.mobile-sheet-reaction-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.55rem;
+  padding: 4px;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-sheet-reaction-btn:active {
+  transform: scale(1.35);
+}
+
+.mobile-sheet-action-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 14px;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-sheet-action-item:active {
+  background: var(--bg-card-hover);
+}
