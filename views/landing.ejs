@@ -11,12 +11,12 @@
 
   <!-- 1. Futuristic Floating Navigation Header -->
   <header class="chatin-header-wrap">
-    <div class="container-xl">
-      <nav class="chatin-floating-nav d-flex align-items-center justify-content-between p-3 px-4 rounded-pill shadow-lg">
+    <div class="container-xl px-2 px-sm-4">
+      <nav class="chatin-floating-nav d-flex align-items-center justify-content-between p-2 p-sm-3 px-3 px-sm-4 rounded-pill shadow-lg">
         <!-- Brand Logo -->
         <a href="/" class="d-flex align-items-center gap-2 text-decoration-none">
           <div class="chatin-logo-badge">
-            <img src="/logo.svg" alt="ChatIn" width="30" height="30">
+            <img src="/logo.svg" alt="ChatIn" width="28" height="28">
           </div>
           <span class="chatin-brand-name">
             Chat<span class="chatin-brand-accent">In</span>
@@ -33,24 +33,24 @@
         </div>
 
         <!-- Navigation Actions -->
-        <div class="d-flex align-items-center gap-2">
+        <div class="d-flex align-items-center gap-1 gap-sm-2">
           <button id="themeToggleBtn" class="btn-theme-toggle" aria-label="Toggle color theme" title="Toggle Theme">
             <i class="bi bi-sun" id="themeIcon"></i>
           </button>
 
           <% if (typeof user !== 'undefined' && user) { %>
-            <a href="/chat" class="btn chatin-btn-gradient rounded-pill px-4 py-2 fw-semibold">
-              Open Chat <i class="bi bi-arrow-right ms-1"></i>
+            <a href="/chat" class="btn chatin-btn-gradient rounded-pill px-3 px-sm-4 py-1.5 py-sm-2 fw-semibold">
+              <span class="small">Open Chat</span> <i class="bi bi-arrow-right ms-1"></i>
             </a>
-            <a href="/logout" class="btn btn-outline-secondary rounded-pill px-3 py-2 text-decoration-none d-none d-sm-inline-block">
+            <a href="/logout" class="btn btn-outline-secondary rounded-pill px-3 py-2 text-decoration-none d-none d-md-inline-block">
               Sign Out
             </a>
           <% } else { %>
-            <a href="/login" class="btn btn-link text-decoration-none px-3 chatin-nav-anchor">
+            <a href="/login" class="btn btn-link text-decoration-none px-2 px-sm-3 chatin-nav-anchor d-none d-sm-inline-block">
               Sign In
             </a>
-            <a href="/register" class="btn chatin-btn-gradient rounded-pill px-4 py-2 fw-semibold">
-              Get Started <i class="bi bi-arrow-right ms-1"></i>
+            <a href="/register" class="btn chatin-btn-gradient rounded-pill px-3 px-sm-4 py-1.5 py-sm-2 fw-semibold">
+              <span class="small">Get Started</span> <i class="bi bi-arrow-right ms-1"></i>
             </a>
           <% } %>
         </div>
@@ -162,6 +162,19 @@
                 Live Simulator
               </span>
             </div>
+          </div>
+
+          <!-- Mobile Simulator Channel Strip -->
+          <div class="mockup-mobile-channel-strip d-md-none px-3 py-2 border-bottom d-flex gap-2 overflow-x-auto bg-body-tertiary">
+            <button type="button" class="mockup-channel-item active rounded-pill px-3 py-1 small" data-name="Kira Vance (Design Lead)">
+              <span class="badge rounded-circle bg-primary me-1" style="font-size: 0.6rem;">KV</span> Kira
+            </button>
+            <button type="button" class="mockup-channel-item rounded-pill px-3 py-1 small" data-name="Core Backend Engine">
+              <span class="badge rounded-circle bg-success me-1" style="font-size: 0.6rem;">BE</span> Backend
+            </button>
+            <button type="button" class="mockup-channel-item rounded-pill px-3 py-1 small" data-name="Design System Hub">
+              <span class="badge rounded-circle bg-danger me-1" style="font-size: 0.6rem;">DS</span> Design
+            </button>
           </div>
 
           <!-- Two-Column Interior -->

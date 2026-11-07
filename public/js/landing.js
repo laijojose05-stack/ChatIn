@@ -33,12 +33,17 @@ document.addEventListener('DOMContentLoaded', () => {
   measureLivePing();
   setInterval(measureLivePing, 12000);
 
-  // 2. Interactive App Mockup Channel Switching
+  // 2. Interactive App Mockup Channel Switching (Desktop + Mobile)
   document.querySelectorAll('.mockup-channel-item').forEach((item) => {
     item.addEventListener('click', () => {
-      document.querySelectorAll('.mockup-channel-item').forEach((i) => i.classList.remove('active'));
-      item.classList.add('active');
       const channelName = item.dataset.name || 'Conversation';
+      document.querySelectorAll('.mockup-channel-item').forEach((i) => {
+        if (i.dataset.name === channelName) {
+          i.classList.add('active');
+        } else {
+          i.classList.remove('active');
+        }
+      });
       const headerTitle = document.getElementById('mockupActiveTitle');
       if (headerTitle) headerTitle.textContent = channelName;
     });
