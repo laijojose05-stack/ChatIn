@@ -23,7 +23,7 @@ const registerSocketHandlers = (io) => {
         return next(new Error('Authentication error: No token provided'));
       }
 
-      const secret = process.env.JWT_SECRET || 'fallback_dev_secret_change_in_production_12345';
+      const secret = process.env.JWT_SECRET || 'chatin_super_secure_jwt_secret_key_2026';
       const decoded = jwt.verify(token, secret);
 
       const user = await User.findById(decoded.id).select('-passwordHash');
@@ -84,28 +84,56 @@ const registerSocketHandlers = (io) => {
       console.log(`Socket ${socket.id} left room conv:${conversationId}`);
     });
 
-    // 3. Typing indicators
-    socket.on('typing_start', ({ conversationId }) => {
+    // 3. Typing indicators (support both typing_start/typing and typing_stop/stop_typing)
+    const onTypingStart = ({ conversationId }) => {
       if (!conversationId) return;
-      socket.to(`conv:${conversationId}`).emit('typing_start', {
+      const payload = {
         conversationId,
         userId,
         username: socket.user.username,
-      });
-    });
+      };
+      socket.to(`conv:${conversationId}`).emit('typing_start', payload);
+      socket.to(`conv:${conversationId}`).emit('user_typing', payload);
+    };
 
-    socket.on('typing_stop', ({ conversationId }) => {
+    const onTypingStop = ({ conversationId }) => {
       if (!conversationId) return;
-      socket.to(`conv:${conversationId}`).emit('typing_stop', {
+      const payload = {
         conversationId,
         userId,
         username: socket.user.username,
-      });
-    });
+      };
+      socket.to(`conv:${conversationId}`).emit('typing_stop', payload);
+      socket.to(`conv:${conversationId}`).emit('user_stop_typing', payload);
+    };
+
+    socket.on('typing_start', onTypingStart);
+    socket.on('typing', onTypingStart);
+    socket.on('typing_stop', onTypingStop);
+    socket.on('stop_typing', onTypingStop);
+
+    // Anti-Spam Flood Protection per Socket Connection
+    const messageTimestamps = [];
+    const isFlooding = () => {
+      const now = Date.now();
+      while (messageTimestamps.length > 0 && messageTimestamps[0] < now - 10000) {
+        messageTimestamps.shift();
+      }
+      if (messageTimestamps.length >= 25) {
+        return true;
+      }
+      messageTimestamps.push(now);
+      return false;
+    };
 
     // 4. Real-time message sent broadcast
     socket.on('send_message', async (data) => {
       try {
+        if (isFlooding()) {
+          socket.emit('spam_warning', { message: 'Sending messages too rapidly. Please slow down.' });
+          return;
+        }
+
         const { conversationId, message } = data;
         if (!conversationId || !message) return;
 
@@ -114,6 +142,7 @@ const registerSocketHandlers = (io) => {
           conversationId,
           message,
         });
+        io.to(`conv:${conversationId}`).emit('new_message', message);
 
         // Also notify participants who might be outside the room
         const conversation = await Conversation.findById(conversationId).select('participants');
@@ -133,16 +162,22 @@ const registerSocketHandlers = (io) => {
       }
     });
 
-    // 5. Read receipt event
-    socket.on('message_read', ({ conversationId, messageIds, readByUserId }) => {
+    // 5. Read receipt event (support both message_read and read_message)
+    const onMessageRead = ({ conversationId, messageIds, messageId, readByUserId }) => {
       if (!conversationId) return;
-      io.to(`conv:${conversationId}`).emit('message_read', {
+      const ids = messageIds || (messageId ? [messageId] : []);
+      const payload = {
         conversationId,
-        messageIds,
+        messageIds: ids,
+        messageId: messageId || (ids.length > 0 ? ids[0] : null),
         readByUserId: readByUserId || userId,
         readAt: new Date(),
-      });
-    });
+      };
+      io.to(`conv:${conversationId}`).emit('message_read', payload);
+    };
+
+    socket.on('message_read', onMessageRead);
+    socket.on('read_message', onMessageRead);
 
     // 6. Delivery receipt event
     socket.on('message_delivered', ({ conversationId, messageId }) => {

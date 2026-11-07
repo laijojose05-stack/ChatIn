@@ -1,4 +1,4 @@
-// ChatIn Real-Time Chat Engine (Robust & Safe)
+// ChatIn Real-Time Chat Engine (Robust, Fully Synchronized & Safe)
 document.addEventListener('DOMContentLoaded', () => {
   const currentUser = window.CURRENT_USER || {};
   let socket = null;
@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const mobileBackBtn = document.getElementById('mobileBackBtn');
   const chatApp = document.getElementById('chatApp');
   const conversationSearchInput = document.getElementById('conversationSearchInput');
+  const chatInfoBtn = document.getElementById('chatInfoBtn');
 
   // Modals & Popovers
   const openNewChatBtn = document.getElementById('openNewChatBtn');
@@ -45,16 +46,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const attachmentName = document.getElementById('attachmentName');
   const removeAttachmentBtn = document.getElementById('removeAttachmentBtn');
 
-  // Safe Modal Helper
+  // Safe Bootstrap Modal Helper
   function getModal(el) {
     if (!el || typeof bootstrap === 'undefined') return null;
-    return bootstrap.Modal.getOrCreateInstance ? bootstrap.Modal.getOrCreateInstance(el) : new bootstrap.Modal(el);
+    return bootstrap.Modal.getOrCreateInstance
+      ? bootstrap.Modal.getOrCreateInstance(el)
+      : new bootstrap.Modal(el);
   }
 
   // 1. Initialize Socket.IO
   function initSocket() {
     if (typeof io === 'undefined') {
-      console.warn('Socket.IO script not loaded');
+      console.warn('Socket.IO library not loaded');
       return;
     }
 
@@ -62,12 +65,12 @@ document.addEventListener('DOMContentLoaded', () => {
     socket = io({
       auth: { token },
       transports: ['websocket', 'polling'],
-      reconnectionAttempts: 10,
+      reconnectionAttempts: 15,
       reconnectionDelay: 1000,
     });
 
     socket.on('connect', () => {
-      console.log('⚡ Socket connected successfully:', socket.id);
+      console.log('⚡ Socket connected:', socket.id);
       if (statusDot) {
         statusDot.classList.add('connected');
         statusDot.title = 'Connected to real-time stream';
@@ -84,37 +87,100 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Incoming new message
-    socket.on('new_message', (message) => {
-      handleIncomingMessage(message);
+    // Active users list on initial connection
+    socket.on('active_users', (userIds) => {
+      if (Array.isArray(userIds)) {
+        userIds.forEach((uid) => updateUserOnlineBadge(uid, true));
+      }
+    });
+
+    // Incoming new messages (support both 'receive_message' and 'new_message')
+    socket.on('receive_message', (data) => {
+      const msg = data.message || data;
+      handleIncomingMessage(msg);
+    });
+
+    socket.on('new_message', (msg) => {
+      handleIncomingMessage(msg);
+    });
+
+    // Notification of messages outside active room
+    socket.on('new_message_notification', (data) => {
+      const msg = data.message || data;
+      handleIncomingMessage(msg);
     });
 
     // Message read receipts
-    socket.on('message_read', ({ messageId, conversationId }) => {
+    socket.on('message_read', ({ conversationId, messageIds, messageId }) => {
       if (activeConversation && activeConversation._id === conversationId) {
-        const tick = document.getElementById(`tick-${messageId}`);
-        if (tick) {
-          tick.className = 'bi bi-check2-all text-info';
+        const ids = messageIds || (messageId ? [messageId] : []);
+        if (ids.length > 0) {
+          ids.forEach((mId) => {
+            const tick = document.getElementById(`tick-${mId}`);
+            if (tick) tick.className = 'bi bi-check2-all text-info';
+          });
+        } else {
+          // Mark all sent ticks in this conversation as read
+          document.querySelectorAll('.message-row.sent .bi-check2').forEach((tick) => {
+            tick.className = 'bi bi-check2-all text-info';
+          });
         }
       }
     });
 
-    // Typing indicators
-    socket.on('user_typing', ({ userId, username, conversationId }) => {
-      if (activeConversation && activeConversation._id === conversationId && userId !== currentUser._id) {
+    // Message edited & deleted
+    socket.on('message_edited', ({ conversationId, message }) => {
+      if (activeConversation && activeConversation._id === conversationId && message) {
+        const row = document.querySelector(`.message-row[data-id="${message._id}"]`);
+        if (row) {
+          const textEl = row.querySelector('.msg-text');
+          if (textEl) textEl.textContent = message.content;
+        }
+      }
+    });
+
+    socket.on('message_deleted', ({ conversationId, messageId }) => {
+      if (activeConversation && activeConversation._id === conversationId && messageId) {
+        const row = document.querySelector(`.message-row[data-id="${messageId}"]`);
+        if (row) {
+          const textEl = row.querySelector('.msg-text');
+          if (textEl) {
+            textEl.textContent = 'This message was deleted';
+            textEl.classList.add('fst-italic', 'opacity-75');
+          }
+          const att = row.querySelector('.msg-img-attachment, a');
+          if (att) att.remove();
+        }
+      }
+    });
+
+    // New conversation / group created
+    socket.on('conversation_created', () => {
+      loadConversations();
+    });
+
+    // Typing indicators (handle user_typing / typing_start)
+    const handleTypingEvent = ({ userId, username, conversationId }) => {
+      const curId = (currentUser._id || '').toString();
+      if (activeConversation && activeConversation._id === conversationId && userId !== curId) {
         if (typingIndicator) {
           typingIndicator.classList.remove('d-none');
           const tText = typingIndicator.querySelector('.typing-text');
-          if (tText) tText.textContent = `${username} is typing...`;
+          if (tText) tText.textContent = `${username || 'Someone'} is typing...`;
         }
       }
-    });
+    };
 
-    socket.on('user_stop_typing', ({ conversationId }) => {
+    const handleStopTypingEvent = ({ conversationId }) => {
       if (activeConversation && activeConversation._id === conversationId) {
         if (typingIndicator) typingIndicator.classList.add('d-none');
       }
-    });
+    };
+
+    socket.on('user_typing', handleTypingEvent);
+    socket.on('typing_start', handleTypingEvent);
+    socket.on('user_stop_typing', handleStopTypingEvent);
+    socket.on('typing_stop', handleStopTypingEvent);
 
     // Online status updates
     socket.on('user_online', ({ userId }) => {
@@ -155,6 +221,10 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
   }
 
+  function isGroupConv(c) {
+    return c.conversationType === 'group' || Boolean(c.isGroup);
+  }
+
   function renderFilteredConversations() {
     if (!conversationsList) return;
 
@@ -163,9 +233,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Apply Filter Tab
     if (currentFilter === 'direct') {
-      list = list.filter((c) => !c.isGroup);
+      list = list.filter((c) => !isGroupConv(c));
     } else if (currentFilter === 'group') {
-      list = list.filter((c) => c.isGroup);
+      list = list.filter((c) => isGroupConv(c));
     } else if (currentFilter === 'unread') {
       list = list.filter((c) => (c.unreadCount || 0) > 0);
     }
@@ -173,9 +243,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Apply Search Query
     if (searchQuery) {
       list = list.filter((c) => {
+        const isGrp = isGroupConv(c);
         const otherUser = getOtherParticipant(c);
-        const title = c.isGroup ? c.groupName : (otherUser ? otherUser.username : '');
-        return title.toLowerCase().includes(searchQuery);
+        const title = isGrp ? c.groupName : (otherUser ? otherUser.username : '');
+        return title ? title.toLowerCase().includes(searchQuery) : false;
       });
     }
 
@@ -191,26 +262,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     list.forEach((conv) => {
+      const isGrp = isGroupConv(conv);
       const otherUser = getOtherParticipant(conv);
-      const title = conv.isGroup ? conv.groupName : (otherUser ? otherUser.username : 'Unknown');
-      const isOnline = !conv.isGroup && otherUser && otherUser.isOnline;
-      const initials = title.substring(0, 2).toUpperCase();
-      const lastMsg = conv.lastMessage ? (conv.lastMessage.isDeleted ? 'This message was deleted' : conv.lastMessage.content) : 'No messages yet';
-      const time = conv.lastMessage ? formatTimestamp(conv.lastMessage.createdAt) : '';
+      const title = isGrp ? (conv.groupName || 'Group Hub') : (otherUser ? otherUser.username : 'Unknown');
+      const isOnline = !isGrp && otherUser && otherUser.isOnline;
+      const initials = (title || 'CI').substring(0, 2).toUpperCase();
+
+      const lastMsgObj = conv.lastMessage;
+      let lastMsgText = 'No messages yet';
+      if (lastMsgObj) {
+        if (lastMsgObj.deletedAt || lastMsgObj.isDeleted) {
+          lastMsgText = 'This message was deleted';
+        } else if (lastMsgObj.content) {
+          lastMsgText = lastMsgObj.content;
+        } else if (lastMsgObj.attachments && lastMsgObj.attachments.length > 0) {
+          lastMsgText = 'Sent an attachment';
+        }
+      }
+
+      const time = lastMsgObj ? formatTimestamp(lastMsgObj.createdAt) : '';
       const unread = conv.unreadCount || 0;
       const isActive = activeConversation && activeConversation._id === conv._id;
 
       const item = document.createElement('div');
       item.className = `conv-item ${isActive ? 'active' : ''}`;
       item.dataset.id = conv._id;
-      if (otherUser && !conv.isGroup) {
+      if (otherUser && !isGrp) {
         item.dataset.userId = otherUser._id || otherUser;
       }
 
       item.innerHTML = `
         <div class="conv-avatar-box">
           <div class="conv-avatar">${initials}</div>
-          ${isOnline ? '<span class="conv-online-badge"></span>' : ''}
+          <span class="conv-online-badge" style="display: ${isOnline ? 'block' : 'none'};"></span>
         </div>
         <div class="flex-grow-1 overflow-hidden">
           <div class="d-flex justify-content-between align-items-center mb-1">
@@ -218,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="conv-time">${time}</span>
           </div>
           <div class="d-flex justify-content-between align-items-center">
-            <span class="conv-snippet text-truncate">${escapeHtml(lastMsg)}</span>
+            <span class="conv-snippet text-truncate">${escapeHtml(lastMsgText)}</span>
             ${unread > 0 ? `<span class="unread-pill">${unread}</span>` : ''}
           </div>
         </div>
@@ -256,9 +340,10 @@ document.addEventListener('DOMContentLoaded', () => {
       el.classList.toggle('active', el.dataset.id === conv._id);
     });
 
-    // Clear unread badge in DOM
+    // Clear unread badge in DOM & locally
     const unreadEl = document.querySelector(`.conv-item[data-id="${conv._id}"] .unread-pill`);
     if (unreadEl) unreadEl.remove();
+    conv.unreadCount = 0;
 
     // Show active chat wrapper
     if (emptyChatState) emptyChatState.classList.add('d-none');
@@ -268,13 +353,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Update Header
+    const isGrp = isGroupConv(conv);
     const otherUser = getOtherParticipant(conv);
-    const title = conv.isGroup ? conv.groupName : (otherUser ? otherUser.username : 'Unknown');
+    const title = isGrp ? (conv.groupName || 'Group Hub') : (otherUser ? otherUser.username : 'Unknown');
     if (activeChatName) activeChatName.textContent = title;
-    if (activeChatAvatar) activeChatAvatar.textContent = title.substring(0, 2).toUpperCase();
+    if (activeChatAvatar) activeChatAvatar.textContent = (title || 'CI').substring(0, 2).toUpperCase();
 
     if (activeChatStatus) {
-      if (conv.isGroup) {
+      if (isGrp) {
         activeChatStatus.textContent = `${conv.participants?.length || 0} members`;
       } else if (otherUser) {
         activeChatStatus.textContent = otherUser.isOnline ? 'Active now' : 'Offline';
@@ -301,7 +387,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
       if (data.success) {
         renderMessages(data.data || []);
+        // Mark as read in API and socket
+        fetch(`/api/messages/${conv._id}/read`, { method: 'POST' }).catch(() => {});
         if (socket && socket.connected) {
+          socket.emit('message_read', { conversationId: conv._id });
           socket.emit('read_message', { conversationId: conv._id });
         }
       }
@@ -334,42 +423,65 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function appendMessageToView(msg) {
     if (!messagesStream) return;
-    const isMine = msg.sender?._id === currentUser._id || msg.sender === currentUser._id;
+
+    // Deduplication check: if message already rendered, don't append again
+    if (msg._id && document.querySelector(`.message-row[data-id="${msg._id}"]`)) {
+      return;
+    }
+
+    const senderId = msg.senderId?._id || msg.senderId || msg.sender?._id || msg.sender;
+    const senderIdStr = senderId ? senderId.toString() : '';
+    const currentUserIdStr = (currentUser._id || '').toString();
+    const isMine = senderIdStr === currentUserIdStr;
+
     const time = formatTimestamp(msg.createdAt);
-    const senderName = !isMine && activeConversation?.isGroup && msg.sender?.username ? msg.sender.username : '';
+    const isGrp = activeConversation && isGroupConv(activeConversation);
+    const senderUsername = msg.senderId?.username || msg.sender?.username;
+    const senderName = !isMine && isGrp && senderUsername ? senderUsername : '';
 
     const row = document.createElement('div');
     row.className = `message-row ${isMine ? 'sent' : 'received'}`;
-    row.dataset.id = msg._id;
+    if (msg._id) row.dataset.id = msg._id;
 
+    // Handle attachments
     let attachmentHtml = '';
-    if (msg.attachments && msg.attachments.length > 0) {
-      const att = msg.attachments[0];
-      const isImg = att.fileType?.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif)$/i.test(att.fileUrl);
-      if (isImg) {
-        attachmentHtml = `<img src="${att.fileUrl}" class="msg-img-attachment" alt="Photo" onclick="window.open('${att.fileUrl}', '_blank')">`;
-      } else {
-        attachmentHtml = `
-          <a href="${att.fileUrl}" target="_blank" class="d-flex align-items-center gap-2 p-2 mb-2 rounded bg-black bg-opacity-25 text-white text-decoration-none">
-            <i class="bi bi-file-earmark-arrow-down fs-5"></i>
-            <span class="small text-truncate">${escapeHtml(att.fileName || 'Download attachment')}</span>
-          </a>
-        `;
+    const rawAttachments = msg.attachments ? (Array.isArray(msg.attachments) ? msg.attachments.flat() : [msg.attachments]) : [];
+    if (rawAttachments.length > 0) {
+      const att = rawAttachments[0];
+      const fileUrl = att.url || att.fileUrl || '';
+      const fileName = att.originalName || att.fileName || 'Attachment';
+      const mimeType = att.mimeType || att.fileType || '';
+      const isImg = mimeType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileUrl);
+
+      if (fileUrl) {
+        if (isImg) {
+          attachmentHtml = `<img src="${fileUrl}" class="msg-img-attachment" alt="${escapeHtml(fileName)}" onclick="window.open('${fileUrl}', '_blank')">`;
+        } else {
+          attachmentHtml = `
+            <a href="${fileUrl}" target="_blank" class="d-flex align-items-center gap-2 p-2 mb-2 rounded bg-black bg-opacity-25 text-white text-decoration-none">
+              <i class="bi bi-file-earmark-arrow-down fs-5"></i>
+              <span class="small text-truncate">${escapeHtml(fileName)}</span>
+            </a>
+          `;
+        }
       }
     }
 
-    // Read tick
+    // Read tick for sender
     let tickHtml = '';
     if (isMine) {
       const isRead = msg.readBy && msg.readBy.length > 1;
       tickHtml = `<i id="tick-${msg._id}" class="bi ${isRead ? 'bi-check2-all text-info' : 'bi-check2'}"></i>`;
     }
 
+    const isDeleted = Boolean(msg.deletedAt || msg.isDeleted);
+    const contentText = isDeleted ? 'This message was deleted' : (msg.content || '');
+
     row.innerHTML = `
-      <div class="message-bubble">
+      <div class="message-bubble ${isDeleted ? 'opacity-75' : ''}">
         ${senderName ? `<div class="msg-sender-name">${escapeHtml(senderName)}</div>` : ''}
-        ${attachmentHtml}
-        <div class="msg-text">${escapeHtml(msg.content)}</div>
+        ${!isDeleted ? attachmentHtml : ''}
+        <div class="msg-text ${isDeleted ? 'fst-italic' : ''}">${escapeHtml(contentText)}</div>
         <div class="msg-meta">
           <span>${time}</span>
           ${tickHtml}
@@ -390,14 +502,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const payload = {
         conversationId: activeConversation._id,
-        content: text || 'Sent an attachment',
-        attachments: pendingAttachment ? [pendingAttachment] : [],
+        content: text,
+        attachments: pendingAttachment
+          ? (Array.isArray(pendingAttachment) ? pendingAttachment : [pendingAttachment])
+          : [],
       };
 
       if (messageInput) messageInput.value = '';
       clearPendingAttachment();
+
       if (socket && socket.connected) {
         socket.emit('stop_typing', { conversationId: activeConversation._id });
+        socket.emit('typing_stop', { conversationId: activeConversation._id });
       }
 
       try {
@@ -411,7 +527,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.success) {
           appendMessageToView(data.data);
           scrollToBottom();
-          updateSidebarSnippet(activeConversation._id, data.data.content);
+          updateSidebarSnippet(activeConversation._id, data.data.content || 'Sent an attachment');
+          if (socket && socket.connected) {
+            socket.emit('send_message', { conversationId: activeConversation._id, message: data.data });
+          }
         }
       } catch (err) {
         console.error('Failed to send message:', err);
@@ -421,14 +540,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Handle Incoming Message
   function handleIncomingMessage(msg) {
-    if (activeConversation && activeConversation._id === msg.conversationId) {
+    if (!msg) return;
+    const convId = msg.conversationId?._id
+      ? msg.conversationId._id.toString()
+      : (msg.conversationId ? msg.conversationId.toString() : '');
+
+    if (activeConversation && activeConversation._id.toString() === convId) {
       appendMessageToView(msg);
       scrollToBottom();
+      fetch(`/api/messages/${convId}/read`, { method: 'POST' }).catch(() => {});
       if (socket && socket.connected) {
-        socket.emit('read_message', { conversationId: activeConversation._id });
+        socket.emit('message_read', { conversationId: convId, messageId: msg._id });
+        socket.emit('read_message', { conversationId: convId, messageId: msg._id });
+      }
+    } else {
+      // Increment unread count in sidebar item
+      const item = document.querySelector(`.conv-item[data-id="${convId}"]`);
+      if (item) {
+        let unreadBadge = item.querySelector('.unread-pill');
+        if (!unreadBadge) {
+          unreadBadge = document.createElement('span');
+          unreadBadge.className = 'unread-pill';
+          unreadBadge.textContent = '1';
+          const container = item.querySelector('.conv-snippet')?.parentElement;
+          if (container) container.appendChild(unreadBadge);
+        } else {
+          const count = (parseInt(unreadBadge.textContent, 10) || 0) + 1;
+          unreadBadge.textContent = count;
+        }
       }
     }
-    updateSidebarSnippet(msg.conversationId, msg.content);
+
+    updateSidebarSnippet(convId, msg.content || 'Sent an attachment');
+
+    // Notification chime for incoming messages from other users
+    const senderIdStr = (msg.senderId?._id || msg.senderId || '').toString();
+    const currentIdStr = (currentUser._id || '').toString();
+    if (senderIdStr && senderIdStr !== currentIdStr) {
+      playNotificationChime();
+    }
   }
 
   function updateSidebarSnippet(convId, content) {
@@ -436,7 +586,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (item) {
       const snippet = item.querySelector('.conv-snippet');
       if (snippet) snippet.textContent = content;
-      item.parentElement.prepend(item);
+      if (item.parentElement) item.parentElement.prepend(item);
     } else {
       loadConversations();
     }
@@ -447,9 +597,11 @@ document.addEventListener('DOMContentLoaded', () => {
     messageInput.addEventListener('input', () => {
       if (!activeConversation || !socket || !socket.connected) return;
       socket.emit('typing', { conversationId: activeConversation._id });
+      socket.emit('typing_start', { conversationId: activeConversation._id });
       clearTimeout(typingTimeout);
       typingTimeout = setTimeout(() => {
         socket.emit('stop_typing', { conversationId: activeConversation._id });
+        socket.emit('typing_stop', { conversationId: activeConversation._id });
       }, 2000);
     });
   }
@@ -469,6 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!file) return;
 
       const formData = new FormData();
+      formData.append('attachments', file);
       formData.append('file', file);
 
       try {
@@ -484,6 +637,8 @@ document.addEventListener('DOMContentLoaded', () => {
             attachmentPreview.classList.remove('d-none');
             attachmentPreview.classList.add('d-flex');
           }
+        } else {
+          alert(data.message || 'File upload failed.');
         }
       } catch (err) {
         alert('File upload failed.');
@@ -530,10 +685,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (emojiToggleBtn && emojiPopover) {
-    emojiToggleBtn.addEventListener('click', () => {
+    emojiToggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
       emojiPopover.classList.toggle('d-none');
       if (!emojiPopover.classList.contains('d-none')) {
         renderEmojis('smileys');
+      }
+    });
+
+    // Close emoji popover when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!emojiPopover.contains(e.target) && e.target !== emojiToggleBtn && !emojiToggleBtn.contains(e.target)) {
+        emojiPopover.classList.add('d-none');
       }
     });
 
@@ -551,75 +714,74 @@ document.addEventListener('DOMContentLoaded', () => {
     const showChatModal = () => {
       const modal = getModal(newChatModalEl);
       if (modal) modal.show();
+      if (userSearchModalInput) {
+        userSearchModalInput.value = '';
+        triggerUserSearch('');
+      }
     };
 
     openNewChatBtn.addEventListener('click', showChatModal);
     if (emptyNewChatBtn) emptyNewChatBtn.addEventListener('click', showChatModal);
 
     let searchTimeout;
+    const triggerUserSearch = async (q) => {
+      if (userSearchResults) {
+        userSearchResults.innerHTML = '<div class="text-center text-muted small py-4">Searching...</div>';
+      }
+      try {
+        const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        if (data.success && data.data.length > 0 && userSearchResults) {
+          userSearchResults.innerHTML = '';
+          data.data.forEach((u) => {
+            if (u._id === currentUser._id) return;
+            const row = document.createElement('div');
+            row.className = 'd-flex align-items-center justify-content-between p-2 rounded hover-bg cursor-pointer';
+            row.innerHTML = `
+              <div class="d-flex align-items-center gap-2">
+                <div class="user-avatar-circle" style="width:34px;height:34px;font-size:0.8rem;">
+                  ${(u.username || 'CI').substring(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <div class="fw-semibold small">${escapeHtml(u.username)}</div>
+                  <div class="text-muted extra-small">${escapeHtml(u.email)}</div>
+                </div>
+              </div>
+              <button class="btn btn-sm chatin-btn-gradient rounded-pill px-3">Chat</button>
+            `;
+
+            row.addEventListener('click', async () => {
+              const modal = getModal(newChatModalEl);
+              if (modal) modal.hide();
+
+              const createRes = await fetch('/api/conversations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ recipientId: u._id }),
+              });
+              const createData = await createRes.json();
+              if (createData.success) {
+                await loadConversations();
+                selectConversation(createData.data);
+              }
+            });
+            userSearchResults.appendChild(row);
+          });
+        } else if (userSearchResults) {
+          userSearchResults.innerHTML = '<div class="text-center text-muted small py-4">No users found.</div>';
+        }
+      } catch (err) {
+        if (userSearchResults) {
+          userSearchResults.innerHTML = '<div class="text-center text-danger small py-4">Search failed.</div>';
+        }
+      }
+    };
+
     if (userSearchModalInput) {
       userSearchModalInput.addEventListener('input', (e) => {
         clearTimeout(searchTimeout);
         const q = e.target.value.trim();
-        if (!q) {
-          if (userSearchResults) {
-            userSearchResults.innerHTML = '<div class="text-center text-muted small py-4">Search by username to begin chatting.</div>';
-          }
-          return;
-        }
-
-        searchTimeout = setTimeout(async () => {
-          if (userSearchResults) {
-            userSearchResults.innerHTML = '<div class="text-center text-muted small py-4">Searching...</div>';
-          }
-          try {
-            const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`);
-            const data = await res.json();
-            if (data.success && data.data.length > 0 && userSearchResults) {
-              userSearchResults.innerHTML = '';
-              data.data.forEach((u) => {
-                if (u._id === currentUser._id) return;
-                const row = document.createElement('div');
-                row.className = 'd-flex align-items-center justify-content-between p-2 rounded hover-bg cursor-pointer';
-                row.innerHTML = `
-                  <div class="d-flex align-items-center gap-2">
-                    <div class="user-avatar-circle" style="width:34px;height:34px;font-size:0.8rem;">
-                      ${u.username.substring(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <div class="fw-semibold small">${escapeHtml(u.username)}</div>
-                      <div class="text-muted extra-small">${escapeHtml(u.email)}</div>
-                    </div>
-                  </div>
-                  <button class="btn btn-sm chatin-btn-gradient rounded-pill px-3">Chat</button>
-                `;
-
-                row.addEventListener('click', async () => {
-                  const modal = getModal(newChatModalEl);
-                  if (modal) modal.hide();
-
-                  const createRes = await fetch('/api/conversations', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ recipientId: u._id }),
-                  });
-                  const createData = await createRes.json();
-                  if (createData.success) {
-                    await loadConversations();
-                    selectConversation(createData.data);
-                  }
-                });
-                userSearchResults.appendChild(row);
-              });
-            } else if (userSearchResults) {
-              userSearchResults.innerHTML = '<div class="text-center text-muted small py-4">No users found.</div>';
-            }
-          } catch (err) {
-            if (userSearchResults) {
-              userSearchResults.innerHTML = '<div class="text-center text-danger small py-4">Search failed.</div>';
-            }
-          }
-        }, 300);
+        searchTimeout = setTimeout(() => triggerUserSearch(q), 250);
       });
     }
   }
@@ -635,19 +797,40 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await res.json();
         if (data.success && groupMemberList) {
           groupMemberList.innerHTML = '';
-          data.data.forEach((u) => {
-            if (u._id === currentUser._id) return;
-            const label = document.createElement('label');
-            label.className = 'd-flex align-items-center gap-2 p-1 small cursor-pointer';
-            label.innerHTML = `
-              <input type="checkbox" name="members" value="${u._id}" class="form-check-input mt-0">
-              <span>${escapeHtml(u.username)}</span>
-            `;
-            groupMemberList.appendChild(label);
-          });
+          const users = data.data || [];
+          if (users.length === 0) {
+            groupMemberList.innerHTML = '<div class="text-muted small text-center py-2">No other users found.</div>';
+          } else {
+            users.forEach((u) => {
+              if (u._id === currentUser._id) return;
+              const label = document.createElement('label');
+              label.className = 'd-flex align-items-center gap-2 p-1 small cursor-pointer member-item';
+              label.dataset.name = u.username.toLowerCase();
+              label.innerHTML = `
+                <input type="checkbox" name="members" value="${u._id}" class="form-check-input mt-0">
+                <span>${escapeHtml(u.username)}</span>
+              `;
+              groupMemberList.appendChild(label);
+            });
+          }
         }
-      } catch (e) {}
+      } catch (e) {
+        if (groupMemberList) {
+          groupMemberList.innerHTML = '<div class="text-danger small text-center py-2">Failed to load members.</div>';
+        }
+      }
     });
+
+    // Group member filter search inside modal
+    if (groupMemberSearch && groupMemberList) {
+      groupMemberSearch.addEventListener('input', (e) => {
+        const term = e.target.value.trim().toLowerCase();
+        groupMemberList.querySelectorAll('.member-item').forEach((item) => {
+          const name = item.dataset.name || '';
+          item.style.display = name.includes(term) ? 'flex' : 'none';
+        });
+      });
+    }
 
     if (createGroupForm) {
       createGroupForm.addEventListener('submit', async (e) => {
@@ -664,14 +847,23 @@ document.addEventListener('DOMContentLoaded', () => {
           const res = await fetch('/api/conversations/group', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ groupName: name, description: desc, participantIds: checked }),
+            body: JSON.stringify({
+              groupName: name,
+              groupDescription: desc,
+              description: desc,
+              participants: checked,
+              participantIds: checked,
+            }),
           });
           const data = await res.json();
           if (data.success) {
             const modal = getModal(newGroupModalEl);
             if (modal) modal.hide();
+            createGroupForm.reset();
             await loadConversations();
             selectConversation(data.data);
+          } else {
+            alert(data.message || 'Failed to create group');
           }
         } catch (err) {
           alert('Failed to create group');
@@ -680,10 +872,442 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // 12. Chat Details Info Button Handler
+  if (chatInfoBtn) {
+    chatInfoBtn.addEventListener('click', () => {
+      if (!activeConversation) return;
+      const isGrp = isGroupConv(activeConversation);
+      const otherUser = getOtherParticipant(activeConversation);
+      const title = isGrp ? activeConversation.groupName : (otherUser ? otherUser.username : 'Chat');
+      const desc = isGrp
+        ? (activeConversation.groupDescription || 'No description provided.')
+        : (otherUser?.bio || 'Hey there! I am using ChatIn.');
+      const membersCount = activeConversation.participants?.length || 1;
+
+      alert(`ℹ️ ${title}\n\n${desc}\n\n${isGrp ? `Members: ${membersCount}` : `Status: ${otherUser?.isOnline ? 'Online' : 'Offline'}`}`);
+    });
+  }
+
+  // 13. Workspace Settings Modal & Preferences Handlers
+  const openSettingsBtn = document.getElementById('openSettingsBtn');
+  const userProfilePill = document.getElementById('userProfilePill');
+  const settingsModalEl = document.getElementById('settingsModal');
+  const profileForm = document.getElementById('profileForm');
+  const changePasswordForm = document.getElementById('changePasswordForm');
+  const settingsAvatarInput = document.getElementById('settingsAvatarInput');
+  const settingsAvatarInputBtn = document.getElementById('settingsAvatarInputBtn');
+  const settingsAvatarPreview = document.getElementById('settingsAvatarPreview');
+  const profileAlert = document.getElementById('profileAlert');
+  const passwordAlert = document.getElementById('passwordAlert');
+  const settingsThemeDark = document.getElementById('settingsThemeDark');
+  const settingsThemeLight = document.getElementById('settingsThemeLight');
+  const cardThemeDark = document.getElementById('cardThemeDark');
+  const cardThemeLight = document.getElementById('cardThemeLight');
+  const checkIconDark = document.getElementById('checkIconDark');
+  const checkIconLight = document.getElementById('checkIconLight');
+  const settingsSoundToggle = document.getElementById('settingsSoundToggle');
+  const testChimeBtn = document.getElementById('testChimeBtn');
+  const settingsEnterToSendToggle = document.getElementById('settingsEnterToSendToggle');
+  const sidebarUsernameDisplay = document.getElementById('sidebarUsernameDisplay');
+  const userAvatarCircle = document.getElementById('userAvatarCircle');
+  const settingsBio = document.getElementById('settingsBio');
+  const bioCharCounter = document.getElementById('bioCharCounter');
+  const runLatencyTestBtn = document.getElementById('runLatencyTestBtn');
+  const telemetryLatencyVal = document.getElementById('telemetryLatencyVal');
+  const requestPushBtn = document.getElementById('requestPushBtn');
+  const clearCacheBtn = document.getElementById('clearCacheBtn');
+  const settingsDensityToggle = document.getElementById('settingsDensityToggle');
+  const chatAppContainer = document.querySelector('.chat-app-container');
+  const settingsAvatarDisplay = document.getElementById('settingsAvatarDisplay');
+
+  const showSettings = () => {
+    if (settingsModalEl) {
+      const modal = getModal(settingsModalEl);
+      if (modal) modal.show();
+    }
+  };
+
+  if (openSettingsBtn) openSettingsBtn.addEventListener('click', showSettings);
+  if (userProfilePill) userProfilePill.addEventListener('click', showSettings);
+
+  // Global Keyboard Shortcut: Ctrl+, or Cmd+, to toggle Settings
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+      e.preventDefault();
+      showSettings();
+    }
+  });
+
+  // Bulletproof Master-Detail Settings Tab Switching
+  const settingsNavButtons = document.querySelectorAll('.settings-nav-item[data-settings-tab]');
+  const settingsTabPanes = document.querySelectorAll('.settings-content-pane .tab-pane');
+
+  settingsNavButtons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.getAttribute('data-settings-tab');
+      if (!targetId) return;
+      const targetPane = document.querySelector(targetId);
+      if (!targetPane) return;
+
+      settingsNavButtons.forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      settingsTabPanes.forEach((p) => p.classList.remove('show', 'active'));
+      targetPane.classList.add('show', 'active');
+    });
+  });
+
+  // Bio Character Counter
+  if (settingsBio && bioCharCounter) {
+    const updateBioCounter = () => {
+      bioCharCounter.textContent = `${settingsBio.value.length} / 150`;
+    };
+    settingsBio.addEventListener('input', updateBioCounter);
+    updateBioCounter();
+  }
+
+  // Live avatar file selection preview in Settings (non-destructive)
+  if (settingsAvatarInput) {
+    settingsAvatarInput.addEventListener('change', () => {
+      const file = settingsAvatarInput.files && settingsAvatarInput.files[0];
+      if (file && settingsAvatarDisplay) {
+        const objectUrl = URL.createObjectURL(file);
+        settingsAvatarDisplay.innerHTML = `<img src="${objectUrl}" alt="Preview" class="w-100 h-100 object-fit-cover">`;
+      }
+    });
+  }
+
+  // Password Visibility Toggles for Settings
+  const setupPwdToggle = (btnId, inputId, iconId) => {
+    const btn = document.getElementById(btnId);
+    const input = document.getElementById(inputId);
+    const icon = document.getElementById(iconId);
+    if (btn && input && icon) {
+      btn.addEventListener('click', () => {
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+        icon.className = isPassword ? 'bi bi-eye-slash' : 'bi bi-eye';
+      });
+    }
+  };
+  setupPwdToggle('toggleCurrentPassword', 'currentPasswordInput', 'eyeIconCurrent');
+  setupPwdToggle('toggleNewPassword', 'newPasswordInput', 'eyeIconNew');
+  setupPwdToggle('toggleConfirmNewPassword', 'confirmNewPasswordInput', 'eyeIconConfirmNew');
+
+  // Profile Form Submission
+  if (profileForm) {
+    profileForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const saveProfileBtn = document.getElementById('saveProfileBtn');
+      const saveProfileSpinner = document.getElementById('saveProfileSpinner');
+      const settingsUsername = document.getElementById('settingsUsername');
+
+      if (saveProfileBtn) saveProfileBtn.disabled = true;
+      if (saveProfileSpinner) saveProfileSpinner.classList.remove('d-none');
+      if (profileAlert) profileAlert.className = 'alert d-none';
+
+      try {
+        const formData = new FormData();
+        if (settingsUsername) formData.append('username', settingsUsername.value.trim());
+        if (settingsBio) formData.append('bio', settingsBio.value.trim());
+        const selectedFile = settingsAvatarInput?.files && settingsAvatarInput.files[0];
+        if (selectedFile) {
+          formData.append('profilePicture', selectedFile);
+        }
+
+        const res = await fetch('/api/users/profile', {
+          method: 'PUT',
+          body: formData,
+        });
+        const data = await res.json();
+
+        if (data.success && data.user) {
+          currentUser.username = data.user.username;
+          currentUser.bio = data.user.bio;
+          if (data.user.profilePicture) currentUser.profilePicture = data.user.profilePicture;
+
+          if (sidebarUsernameDisplay) sidebarUsernameDisplay.textContent = currentUser.username;
+          if (userAvatarCircle) {
+            if (currentUser.profilePicture) {
+              userAvatarCircle.innerHTML = `<img src="${currentUser.profilePicture}" alt="${escapeHtml(currentUser.username)}" class="w-100 h-100 rounded-circle object-fit-cover">`;
+            } else {
+              userAvatarCircle.textContent = (currentUser.username || 'CI').substring(0, 2).toUpperCase();
+            }
+          }
+
+          if (profileAlert) {
+            profileAlert.className = 'alert alert-success py-2 px-3 small rounded-3 mb-3';
+            profileAlert.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i> Profile updated successfully!';
+          }
+        } else {
+          if (profileAlert) {
+            profileAlert.className = 'alert alert-danger py-2 px-3 small rounded-3 mb-3';
+            profileAlert.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i> ${escapeHtml(data.message || 'Failed to update profile')}`;
+          }
+        }
+      } catch (err) {
+        if (profileAlert) {
+          profileAlert.className = 'alert alert-danger py-2 px-3 small rounded-3 mb-3';
+          profileAlert.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i> Network error updating profile.';
+        }
+      } finally {
+        if (saveProfileBtn) saveProfileBtn.disabled = false;
+        if (saveProfileSpinner) saveProfileSpinner.classList.add('d-none');
+      }
+    });
+  }
+
+  // Change Password Form Submission
+  if (changePasswordForm) {
+    changePasswordForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const currentPasswordInput = document.getElementById('currentPasswordInput');
+      const newPasswordInput = document.getElementById('newPasswordInput');
+      const confirmNewPasswordInput = document.getElementById('confirmNewPasswordInput');
+      const updatePasswordBtn = document.getElementById('updatePasswordBtn');
+      const updatePasswordSpinner = document.getElementById('updatePasswordSpinner');
+
+      if (passwordAlert) passwordAlert.className = 'alert d-none';
+
+      if (newPasswordInput.value !== confirmNewPasswordInput.value) {
+        if (passwordAlert) {
+          passwordAlert.className = 'alert alert-danger py-2 px-3 small rounded-3 mb-3';
+          passwordAlert.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i> Passwords do not match.';
+        }
+        return;
+      }
+
+      if (updatePasswordBtn) updatePasswordBtn.disabled = true;
+      if (updatePasswordSpinner) updatePasswordSpinner.classList.remove('d-none');
+
+      try {
+        const res = await fetch('/api/users/password', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            currentPassword: currentPasswordInput.value,
+            newPassword: newPasswordInput.value,
+          }),
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          changePasswordForm.reset();
+          if (passwordAlert) {
+            passwordAlert.className = 'alert alert-success py-2 px-3 small rounded-3 mb-3';
+            passwordAlert.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i> Password updated successfully!';
+          }
+        } else {
+          if (passwordAlert) {
+            passwordAlert.className = 'alert alert-danger py-2 px-3 small rounded-3 mb-3';
+            passwordAlert.innerHTML = `<i class="bi bi-exclamation-triangle-fill me-2"></i> ${escapeHtml(data.message || 'Failed to update password')}`;
+          }
+        }
+      } catch (err) {
+        if (passwordAlert) {
+          passwordAlert.className = 'alert alert-danger py-2 px-3 small rounded-3 mb-3';
+          passwordAlert.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i> Network error updating password.';
+        }
+      } finally {
+        if (updatePasswordBtn) updatePasswordBtn.disabled = false;
+        if (updatePasswordSpinner) updatePasswordSpinner.classList.add('d-none');
+      }
+    });
+  }
+
+  // Preferences: Theme Toggles & Visual Cards
+  const updateThemeUI = (theme) => {
+    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('data-bs-theme', theme);
+    localStorage.setItem('chatin_theme', theme);
+    const icon = document.getElementById('themeIcon');
+    if (icon) icon.className = theme === 'dark' ? 'bi bi-sun' : 'bi bi-moon-stars';
+
+    if (cardThemeDark && cardThemeLight) {
+      if (theme === 'dark') {
+        cardThemeDark.classList.add('active');
+        cardThemeLight.classList.remove('active');
+        if (checkIconDark) checkIconDark.className = 'bi bi-check-circle-fill text-primary fs-5';
+        if (checkIconLight) checkIconLight.className = 'bi bi-circle text-muted fs-5';
+      } else {
+        cardThemeLight.classList.add('active');
+        cardThemeDark.classList.remove('active');
+        if (checkIconLight) checkIconLight.className = 'bi bi-check-circle-fill text-primary fs-5';
+        if (checkIconDark) checkIconDark.className = 'bi bi-circle text-muted fs-5';
+      }
+    }
+  };
+
+  const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+  updateThemeUI(initialTheme);
+
+  if (cardThemeDark) cardThemeDark.addEventListener('click', () => updateThemeUI('dark'));
+  if (cardThemeLight) cardThemeLight.addEventListener('click', () => updateThemeUI('light'));
+  if (settingsThemeDark) settingsThemeDark.addEventListener('click', () => updateThemeUI('dark'));
+  if (settingsThemeLight) settingsThemeLight.addEventListener('click', () => updateThemeUI('light'));
+
+  // Accent Color Palette
+  document.querySelectorAll('.accent-color-pill').forEach((pill) => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('.accent-color-pill').forEach((p) => p.classList.remove('active'));
+      pill.classList.add('active');
+      const color = pill.dataset.color;
+      if (color) {
+        document.documentElement.style.setProperty('--accent-primary', color);
+        document.documentElement.style.setProperty('--accent-gradient', `linear-gradient(135deg, ${color} 0%, #8b5cf6 100%)`);
+        localStorage.setItem('chatin_accent', color);
+      }
+    });
+  });
+
+  // Initialize Saved Accent Color
+  const savedAccent = localStorage.getItem('chatin_accent');
+  if (savedAccent) {
+    document.documentElement.style.setProperty('--accent-primary', savedAccent);
+    document.documentElement.style.setProperty('--accent-gradient', `linear-gradient(135deg, ${savedAccent} 0%, #8b5cf6 100%)`);
+    document.querySelectorAll('.accent-color-pill').forEach((pill) => {
+      pill.classList.toggle('active', pill.dataset.color === savedAccent);
+    });
+  }
+
+  // Chat Density Switcher
+  if (settingsDensityToggle && chatAppContainer) {
+    const isCompact = localStorage.getItem('chatin_compact') === 'true';
+    settingsDensityToggle.checked = !isCompact;
+    chatAppContainer.classList.toggle('compact-mode', isCompact);
+
+    settingsDensityToggle.addEventListener('change', (e) => {
+      const compact = !e.target.checked;
+      chatAppContainer.classList.toggle('compact-mode', compact);
+      localStorage.setItem('chatin_compact', compact);
+    });
+  }
+
+  // Preferences: Sound & Enter-to-Send Toggles
+  if (settingsSoundToggle) {
+    settingsSoundToggle.checked = localStorage.getItem('chatin_sound_enabled') !== 'false';
+    settingsSoundToggle.addEventListener('change', (e) => {
+      localStorage.setItem('chatin_sound_enabled', e.target.checked);
+      if (e.target.checked) playNotificationChime(true);
+    });
+  }
+
+  if (testChimeBtn) {
+    testChimeBtn.addEventListener('click', () => {
+      playNotificationChime(true);
+    });
+  }
+
+  if (settingsEnterToSendToggle) {
+    settingsEnterToSendToggle.checked = localStorage.getItem('chatin_enter_to_send') !== 'false';
+    settingsEnterToSendToggle.addEventListener('change', (e) => {
+      localStorage.setItem('chatin_enter_to_send', e.target.checked);
+    });
+  }
+
+  // Telemetry: Server Latency Ping Tester
+  if (runLatencyTestBtn) {
+    runLatencyTestBtn.addEventListener('click', async () => {
+      if (telemetryLatencyVal) telemetryLatencyVal.textContent = 'Testing...';
+      const start = performance.now();
+      try {
+        await fetch('/api/health');
+        const elapsed = Math.round(performance.now() - start);
+        if (telemetryLatencyVal) {
+          telemetryLatencyVal.textContent = `${elapsed} ms`;
+          telemetryLatencyVal.className = elapsed < 60 ? 'fw-bold small text-success' : 'fw-bold small text-warning';
+        }
+      } catch (err) {
+        if (telemetryLatencyVal) telemetryLatencyVal.textContent = 'Error';
+      }
+    });
+  }
+
+  // Desktop Push Notifications Request
+  if (requestPushBtn) {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      requestPushBtn.textContent = 'Active';
+      requestPushBtn.classList.replace('btn-outline-secondary', 'btn-outline-success');
+      requestPushBtn.disabled = true;
+    }
+    requestPushBtn.addEventListener('click', async () => {
+      if ('Notification' in window) {
+        const perm = await Notification.requestPermission();
+        if (perm === 'granted') {
+          requestPushBtn.textContent = 'Active';
+          requestPushBtn.classList.replace('btn-outline-secondary', 'btn-outline-success');
+          requestPushBtn.disabled = true;
+          new Notification('ChatIn Active', {
+            body: 'Desktop notifications successfully enabled.',
+            icon: '/logo.png',
+          });
+        }
+      }
+    });
+  }
+
+  // Clear Local Cache
+  if (clearCacheBtn) {
+    clearCacheBtn.addEventListener('click', () => {
+      if (confirm('Clear local preferences & cached state and refresh?')) {
+        const theme = localStorage.getItem('chatin_theme');
+        localStorage.clear();
+        if (theme) localStorage.setItem('chatin_theme', theme);
+        window.location.reload();
+      }
+    });
+  }
+
+  // Keyboard shortcut: Press Enter to send (or Ctrl+Enter if toggled off)
+  if (messageInput) {
+    messageInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        const enterToSend = localStorage.getItem('chatin_enter_to_send') !== 'false';
+        if (!enterToSend && !e.ctrlKey && !e.metaKey) {
+          e.preventDefault();
+        }
+      }
+    });
+  }
+
+  // Web Audio Synthesizer Notification Chime
+  let audioCtx = null;
+  function playNotificationChime(forcePlay = false) {
+    const soundEnabled = localStorage.getItem('chatin_sound_enabled') !== 'false';
+    if (!soundEnabled && !forcePlay) return;
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+      if (!audioCtx) audioCtx = new AudioContextClass();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, now); // D5
+      osc.frequency.exponentialRampToValueAtTime(880, now + 0.12); // A5
+
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.36);
+    } catch (e) {}
+  }
+
   // Utilities
   function getOtherParticipant(conv) {
-    if (!conv.participants) return null;
-    return conv.participants.find((p) => (p._id || p) !== currentUser._id);
+    if (!conv.participants || !Array.isArray(conv.participants)) return null;
+    const currentIdStr = (currentUser._id || '').toString();
+    return conv.participants.find((p) => {
+      const pIdStr = (p._id || p).toString();
+      return pIdStr !== currentIdStr;
+    });
   }
 
   function updateUserOnlineBadge(userId, isOnline) {
@@ -691,9 +1315,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (badge) {
       badge.style.display = isOnline ? 'block' : 'none';
     }
-    if (activeConversation && !activeConversation.isGroup) {
+    if (activeConversation && !isGroupConv(activeConversation)) {
       const other = getOtherParticipant(activeConversation);
-      if (other && (other._id || other) === userId && activeChatStatus) {
+      const otherIdStr = other ? (other._id || other).toString() : '';
+      if (otherIdStr === userId.toString() && activeChatStatus) {
         activeChatStatus.textContent = isOnline ? 'Active now' : 'Offline';
       }
     }

@@ -77,7 +77,18 @@ const sendMessage = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'conversationId is required' });
     }
 
-    if (!content && (!attachments || attachments.length === 0)) {
+    // Normalize attachments: handle flattened array if nested
+    let normalizedAttachments = [];
+    if (Array.isArray(attachments)) {
+      normalizedAttachments = attachments.flat().map((att) => ({
+        url: att.url || att.fileUrl || '',
+        originalName: att.originalName || att.fileName || 'attachment',
+        mimeType: att.mimeType || att.fileType || 'application/octet-stream',
+        size: att.size || 0,
+      }));
+    }
+
+    if (!content && normalizedAttachments.length === 0) {
       return res.status(400).json({ success: false, message: 'Message cannot be empty' });
     }
 
@@ -98,8 +109,8 @@ const sendMessage = async (req, res, next) => {
       senderId: currentUserId,
       content: content || '',
       replyTo: replyTo || null,
-      attachments: attachments || [],
-      messageType: messageType || (attachments && attachments.length > 0 ? 'image' : 'text'),
+      attachments: normalizedAttachments,
+      messageType: messageType || (normalizedAttachments.length > 0 ? 'image' : 'text'),
       readBy: [{ user: currentUserId, readAt: new Date() }],
       deliveredTo: [{ user: currentUserId, deliveredAt: new Date() }],
     });
@@ -129,6 +140,26 @@ const sendMessage = async (req, res, next) => {
               : `${req.user.username} sent you a message`,
           conversationId: conversation._id,
         });
+      }
+    }
+
+    // Real-Time Socket Broadcast to Active Conversation & User Rooms
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`conv:${conversationId}`).emit('receive_message', {
+        conversationId,
+        message: populated,
+      });
+      io.to(`conv:${conversationId}`).emit('new_message', populated);
+
+      for (const pId of conversation.participants) {
+        const pIdStr = pId.toString();
+        if (pIdStr !== currentUserId.toString()) {
+          io.to(`user:${pIdStr}`).emit('new_message_notification', {
+            conversationId,
+            message: populated,
+          });
+        }
       }
     }
 
@@ -175,6 +206,14 @@ const editMessage = async (req, res, next) => {
         populate: { path: 'senderId', select: 'username' },
       });
 
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`conv:${message.conversationId}`).emit('message_edited', {
+        conversationId: message.conversationId,
+        message: populated,
+      });
+    }
+
     res.json({ success: true, message: 'Message updated', data: populated });
   } catch (error) {
     next(error);
@@ -209,6 +248,14 @@ const deleteMessage = async (req, res, next) => {
     message.content = 'This message was deleted';
     message.attachments = [];
     await message.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`conv:${message.conversationId}`).emit('message_deleted', {
+        conversationId: message.conversationId,
+        messageId: message._id,
+      });
+    }
 
     res.json({
       success: true,
@@ -260,6 +307,16 @@ const markAsRead = async (req, res, next) => {
       }
     );
 
+    // Broadcast read receipt event via Socket.IO
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`conv:${conversationId}`).emit('message_read', {
+        conversationId,
+        readByUserId: currentUserId.toString(),
+        readAt: new Date(),
+      });
+    }
+
     res.json({ success: true, updatedCount: result.modifiedCount });
   } catch (error) {
     next(error);
@@ -271,11 +328,20 @@ const markAsRead = async (req, res, next) => {
 // @access  Private
 const uploadAttachments = async (req, res, next) => {
   try {
-    if (!req.files || req.files.length === 0) {
+    let rawFiles = [];
+    if (Array.isArray(req.files)) {
+      rawFiles = req.files;
+    } else if (req.files && typeof req.files === 'object') {
+      rawFiles = Object.values(req.files).flat();
+    } else if (req.file) {
+      rawFiles = [req.file];
+    }
+
+    if (!rawFiles || rawFiles.length === 0) {
       return res.status(400).json({ success: false, message: 'No files uploaded' });
     }
 
-    const attachments = req.files.map((file) => {
+    const attachments = rawFiles.map((file) => {
       let fileUrl;
       if (file.buffer) {
         fileUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
@@ -284,8 +350,11 @@ const uploadAttachments = async (req, res, next) => {
       }
       return {
         url: fileUrl,
+        fileUrl, // for frontend compatibility
         originalName: file.originalname,
+        fileName: file.originalname, // for frontend compatibility
         mimeType: file.mimetype,
+        fileType: file.mimetype, // for frontend compatibility
         size: file.size,
       };
     });

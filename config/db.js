@@ -17,7 +17,8 @@ const connectDB = async () => {
     });
 
     cachedConnection = conn;
-    console.log(`✅ MongoDB Connected successfully: ${conn.connection.host}`);
+    const host = conn.connection?.host || conn.connections?.[0]?.host || 'MongoDB Atlas';
+    console.log(`✅ MongoDB Connected successfully: ${host}`);
     return conn;
   } catch (error) {
     console.error(`❌ MongoDB Connection Error: ${error.message}`);

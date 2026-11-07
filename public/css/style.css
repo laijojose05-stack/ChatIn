@@ -23,7 +23,8 @@
 /* ==========================================================================
    1. PREMIUM OBSIDIAN SLATE DARK THEME
    ========================================================================== */
-[data-theme="dark"] {
+[data-theme="dark"],
+[data-bs-theme="dark"] {
   --bg-app: #0b0f19;
   --bg-sidebar: #111625;
   --bg-chat: #0e121d;
@@ -32,13 +33,24 @@
   --bg-input: #151b2b;
   --bg-input-focus: #182033;
 
-  --border-color: rgba(255, 255, 255, 0.09);
-  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-color: rgba(255, 255, 255, 0.12);
+  --border-subtle: rgba(255, 255, 255, 0.06);
   --border-focus: #6366f1;
 
   --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+
+  /* Bootstrap 5 Theme Variable Overrides */
+  --bs-body-color: #f8fafc !important;
+  --bs-body-bg: #0b0f19 !important;
+  --bs-secondary-color: #cbd5e1 !important;
+  --bs-secondary-color-rgb: 203, 213, 225 !important;
+  --bs-tertiary-color: #94a3b8 !important;
+  --bs-tertiary-bg: #151b2c !important;
+  --bs-border-color: rgba(255, 255, 255, 0.12) !important;
+  --bs-border-color-translucent: rgba(255, 255, 255, 0.1) !important;
+  --bs-emphasis-color: #ffffff !important;
 
   --bubble-sent: #4f46e5;
   --bubble-sent-gradient: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
@@ -56,7 +68,8 @@
 /* ==========================================================================
    2. CRISP LIGHT THEME
    ========================================================================== */
-[data-theme="light"] {
+[data-theme="light"],
+[data-bs-theme="light"] {
   --bg-app: #f4f6fa;
   --bg-sidebar: #ffffff;
   --bg-chat: #f8fafc;
@@ -65,13 +78,24 @@
   --bg-input: #ffffff;
   --bg-input-focus: #ffffff;
 
-  --border-color: rgba(0, 0, 0, 0.08);
-  --border-subtle: rgba(0, 0, 0, 0.04);
+  --border-color: rgba(0, 0, 0, 0.1);
+  --border-subtle: rgba(0, 0, 0, 0.05);
   --border-focus: #6366f1;
 
   --text-primary: #0f172a;
   --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-muted: #64748b;
+
+  /* Bootstrap 5 Theme Variable Overrides */
+  --bs-body-color: #0f172a !important;
+  --bs-body-bg: #f4f6fa !important;
+  --bs-secondary-color: #475569 !important;
+  --bs-secondary-color-rgb: 71, 85, 105 !important;
+  --bs-tertiary-color: #64748b !important;
+  --bs-tertiary-bg: #f8fafc !important;
+  --bs-border-color: rgba(0, 0, 0, 0.1) !important;
+  --bs-border-color-translucent: rgba(0, 0, 0, 0.08) !important;
+  --bs-emphasis-color: #0f172a !important;
 
   --bubble-sent: #4f46e5;
   --bubble-sent-gradient: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
@@ -370,59 +394,65 @@ html, body {
   min-height: 100vh;
 }
 
-[data-theme="dark"] .auth-page-wrapper::before {
+[data-theme="dark"] .auth-page-wrapper::before,
+[data-bs-theme="dark"] .auth-page-wrapper::before {
   content: '';
   position: absolute;
   top: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 700px;
-  height: 500px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
+  width: 800px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.16) 0%, rgba(139, 92, 246, 0.05) 50%, transparent 75%);
   pointer-events: none;
 }
 
 .auth-card {
   width: 100%;
-  max-width: 440px;
+  max-width: 460px;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(20px);
   position: relative;
   z-index: 1;
 }
 
-/* Split Registration Layout */
+/* Split Showcase Authentication Layout */
 .auth-split-card {
   width: 100%;
-  max-width: 980px;
+  max-width: 960px;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(20px);
   position: relative;
   z-index: 1;
 }
 
 .auth-showcase-panel {
-  background: linear-gradient(145deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.02) 100%);
+  background: linear-gradient(145deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.04) 100%);
   border-right: 1px solid var(--border-color);
   position: relative;
 }
 
 .showcase-title {
   font-size: 1.85rem;
+  font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.25;
+  color: var(--text-primary);
 }
 
 .showcase-desc {
   font-size: 0.95rem;
   line-height: 1.6;
+  color: var(--text-secondary);
 }
 
 .showcase-icon-pill {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 10px;
   background: var(--bg-input);
   border: 1px solid var(--border-color);
@@ -430,7 +460,7 @@ html, body {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
 .avatar-stack {
@@ -485,6 +515,16 @@ html, body {
   transition: border-color 0.15s ease;
 }
 
+.custom-input-group .btn {
+  background-color: var(--bg-input) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-muted) !important;
+}
+
+.custom-input-group .btn:hover {
+  color: var(--text-primary) !important;
+}
+
 .custom-input-group .form-control {
   border-color: var(--border-color) !important;
 }
@@ -526,7 +566,9 @@ html, body {
 }
 
 .btn-back-home {
-  transition: color 0.15s ease, transform 0.15s ease;
+  color: var(--text-secondary) !important;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .btn-back-home:hover {
@@ -534,14 +576,34 @@ html, body {
   transform: translateX(-3px);
 }
 
+.auth-sub {
+  color: var(--text-secondary) !important;
+  font-size: 0.9rem;
+}
+
+.text-muted,
+[data-theme="dark"] .text-muted,
+[data-bs-theme="dark"] .text-muted {
+  color: var(--text-secondary) !important;
+}
+
+.extra-small.text-muted,
+small.text-muted {
+  color: var(--text-secondary) !important;
+  opacity: 0.9;
+}
+
 .auth-brand-name {
   font-size: 1.5rem;
   font-weight: 800;
+  letter-spacing: -0.02em;
   color: var(--text-primary);
 }
 
 .auth-heading {
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary) !important;
   margin-bottom: 0.25rem;
 }
 

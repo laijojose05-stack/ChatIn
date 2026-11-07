@@ -267,6 +267,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 8. Register Form Submission Handler
   const registerForm = document.getElementById('registerForm');
+  const formInitInput = document.getElementById('_form_init');
+  if (formInitInput) {
+    formInitInput.value = Date.now().toString();
+  }
+
   if (registerForm) {
     registerForm.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -277,6 +282,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const password = passwordInput ? passwordInput.value : '';
       const confirmPassword = confirmPasswordInput ? confirmPasswordInput.value : '';
       const termsCheck = document.getElementById('termsCheck');
+      const hpWebsite = document.getElementById('_hp_website') ? document.getElementById('_hp_website').value : '';
+      const formInitVal = formInitInput ? formInitInput.value : '';
 
       // Client Validations
       if (!username || !email || !password) {
@@ -320,7 +327,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const res = await fetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, email, password }),
+          body: JSON.stringify({
+            username,
+            email,
+            password,
+            _hp_website: hpWebsite,
+            _form_init: formInitVal,
+          }),
         });
 
         const data = await res.json();

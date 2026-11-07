@@ -54,7 +54,7 @@ async function runTests() {
     console.log('6. Testing Register Page (GET /register)...');
     const regRes = await fetch(`http://localhost:${PORT}/register`);
     const regHtml = await regRes.text();
-    if (regRes.status === 200 && regHtml.includes('Create Account')) {
+    if (regRes.status === 200 && regHtml.includes('Create your account')) {
       console.log('   ✅ GET /register rendered Register page with 200 OK');
     } else {
       throw new Error('Register page render failed');
@@ -69,7 +69,102 @@ async function runTests() {
       throw new Error('Protected route redirect failed');
     }
 
-    console.log('\n🎉 ALL 7 TESTS PASSED! ChatIn Single-Directory Node App is 100% operational.\n');
+    // 8. Test 404 Route Render
+    console.log('8. Testing 404 Page (GET /not-a-real-page)...');
+    const notFoundRes = await fetch(`http://localhost:${PORT}/not-a-real-page`);
+    const notFoundHtml = await notFoundRes.text();
+    if (notFoundRes.status === 404 && notFoundHtml.includes('404')) {
+      console.log('   ✅ GET /not-a-real-page renders 404 view correctly');
+    } else {
+      throw new Error('404 route failed');
+    }
+
+    // 9. Test Auth API Validation
+    console.log('9. Testing Auth API Validation (POST /api/auth/login)...');
+    const authApiRes = await fetch(`http://localhost:${PORT}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    const authApiJson = await authApiRes.json();
+    if (authApiRes.status === 400 && authApiJson.success === false) {
+      console.log('   ✅ POST /api/auth/login returns 400 with validation message');
+    } else {
+      throw new Error('Auth API validation test failed');
+    }
+
+    // 10. Test Anti-Spam Honeypot Bot Trap
+    console.log('10. Testing Anti-Spam Bot Honeypot (POST /api/auth/register with honeypot filled)...');
+    const botRes = await fetch(`http://localhost:${PORT}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: 'spambot99',
+        email: 'spambot99@spam.com',
+        password: 'password123',
+        _hp_website: 'http://spam-site.com',
+      }),
+    });
+    const botJson = await botRes.json();
+    if (botRes.status === 200 && botJson.message === 'Account processed') {
+      console.log('   ✅ Honeypot successfully trapped bot without creating account');
+    } else {
+      throw new Error('Honeypot protection test failed');
+    }
+
+    // 11. Test Workspace Profile & Password Endpoints
+    console.log('11. Testing Workspace Profile & Settings API Endpoints...');
+    const testUsername = `user_${Date.now()}`;
+    const testEmail = `${testUsername}@example.com`;
+    const settingsUserRes = await fetch(`http://localhost:${PORT}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: testUsername,
+        email: testEmail,
+        password: 'Password123!',
+      }),
+    });
+    const settingsUserJson = await settingsUserRes.json();
+    const token = settingsUserJson.token || settingsUserJson.data?.token;
+    if (!settingsUserRes.ok || !token) {
+      throw new Error(`Failed to create test user: ${settingsUserJson.message}`);
+    }
+
+    const profileRes = await fetch(`http://localhost:${PORT}/api/users/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        bio: 'Updated bio from automated test suite',
+      }),
+    });
+    const profileJson = await profileRes.json();
+    if (!profileRes.ok || !profileJson.success) {
+      throw new Error(`Failed to update profile: ${profileJson.message}`);
+    }
+    console.log('   ✅ PUT /api/users/profile updated user bio successfully');
+
+    const pwdRes = await fetch(`http://localhost:${PORT}/api/users/password`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        currentPassword: 'WrongPassword!',
+        newPassword: 'NewPassword123!',
+      }),
+    });
+    if (pwdRes.status === 400 || pwdRes.status === 401) {
+      console.log('   ✅ PUT /api/users/password verified current password validation');
+    } else {
+      throw new Error('Password security check failed');
+    }
+
+    console.log('\n🎉 ALL 11 TESTS PASSED! ChatIn Single-Directory Node App is 100% operational, spam-protected, and equipped with settings.\n');
     process.exit(0);
   } catch (err) {
     console.error('❌ Test failed:', err.message);

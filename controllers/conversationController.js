@@ -1,7 +1,14 @@
+const mongoose = require('mongoose');
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
+
+const formatConv = (conv, currentUserId) => {
+  const convObj = conv.toObject ? conv.toObject() : { ...conv };
+  convObj.isGroup = convObj.conversationType === 'group';
+  return convObj;
+};
 
 // @desc    Get all conversations for current user
 // @route   GET /api/conversations
@@ -33,7 +40,7 @@ const getUserConversations = async (req, res, next) => {
           'readBy.user': { $ne: currentUserId },
         });
 
-        const convObj = conv.toObject();
+        const convObj = formatConv(conv, currentUserId);
         convObj.unreadCount = unreadCount;
         return convObj;
       })
@@ -55,6 +62,10 @@ const getOrCreatePrivateConversation = async (req, res, next) => {
 
     if (!recipientId) {
       return res.status(400).json({ success: false, message: 'recipientId is required' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(recipientId)) {
+      return res.status(400).json({ success: false, message: 'Invalid recipientId format' });
     }
 
     if (recipientId === currentUserId.toString()) {
@@ -84,7 +95,15 @@ const getOrCreatePrivateConversation = async (req, res, next) => {
       );
     }
 
-    res.status(200).json({ success: true, data: conversation });
+    const convData = formatConv(conversation, currentUserId);
+
+    // Notify recipient via socket
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user:${recipientId}`).emit('conversation_created', convData);
+    }
+
+    res.status(200).json({ success: true, data: convData });
   } catch (error) {
     next(error);
   }
@@ -95,14 +114,16 @@ const getOrCreatePrivateConversation = async (req, res, next) => {
 // @access  Private
 const createGroupConversation = async (req, res, next) => {
   try {
-    const { groupName, groupDescription, participants } = req.body;
+    const { groupName, groupDescription, description, participants, participantIds } = req.body;
     const currentUserId = req.user._id;
 
     if (!groupName || !groupName.trim()) {
       return res.status(400).json({ success: false, message: 'Group name is required' });
     }
 
-    let members = Array.isArray(participants) ? participants : [];
+    const rawMembers = Array.isArray(participants) ? participants : (Array.isArray(participantIds) ? participantIds : []);
+    let members = [...new Set(rawMembers.map((m) => m.toString()))];
+
     // Ensure creator is in participants
     if (!members.includes(currentUserId.toString())) {
       members.push(currentUserId.toString());
@@ -121,10 +142,12 @@ const createGroupConversation = async (req, res, next) => {
       }
     }
 
+    const finalDescription = (groupDescription || description || '').trim();
+
     const conversation = await Conversation.create({
       conversationType: 'group',
       groupName: groupName.trim(),
-      groupDescription: groupDescription ? groupDescription.trim() : '',
+      groupDescription: finalDescription,
       groupPicture,
       participants: members,
       admins: [currentUserId],
@@ -159,7 +182,17 @@ const createGroupConversation = async (req, res, next) => {
       .populate('admins', 'username email profilePicture')
       .populate('lastMessage');
 
-    res.status(201).json({ success: true, data: populated });
+    const convData = formatConv(populated, currentUserId);
+
+    // Notify all participants in real time
+    const io = req.app.get('io');
+    if (io) {
+      members.forEach((pId) => {
+        io.to(`user:${pId}`).emit('conversation_created', convData);
+      });
+    }
+
+    res.status(201).json({ success: true, data: convData });
   } catch (error) {
     next(error);
   }
@@ -171,6 +204,10 @@ const createGroupConversation = async (req, res, next) => {
 const getConversationById = async (req, res, next) => {
   try {
     const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid conversation ID' });
+    }
+
     const conversation = await Conversation.findById(id)
       .populate('participants', 'username email profilePicture bio isOnline lastSeen')
       .populate('admins', 'username email profilePicture')
@@ -192,7 +229,7 @@ const getConversationById = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Access denied to this conversation' });
     }
 
-    res.json({ success: true, data: conversation });
+    res.json({ success: true, data: formatConv(conversation, req.user._id) });
   } catch (error) {
     next(error);
   }
@@ -204,7 +241,11 @@ const getConversationById = async (req, res, next) => {
 const updateGroup = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { groupName, groupDescription } = req.body;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid group ID' });
+    }
+
+    const { groupName, groupDescription, description } = req.body;
     const currentUserId = req.user._id.toString();
 
     const conversation = await Conversation.findById(id);
@@ -218,7 +259,8 @@ const updateGroup = async (req, res, next) => {
     }
 
     if (groupName) conversation.groupName = groupName.trim();
-    if (groupDescription !== undefined) conversation.groupDescription = groupDescription.trim();
+    const newDesc = groupDescription !== undefined ? groupDescription : description;
+    if (newDesc !== undefined) conversation.groupDescription = newDesc.trim();
     if (req.file) {
       conversation.groupPicture = `/uploads/${req.file.filename}`;
     }
@@ -238,7 +280,14 @@ const updateGroup = async (req, res, next) => {
       .populate('admins', 'username email profilePicture')
       .populate('lastMessage');
 
-    res.json({ success: true, message: 'Group updated successfully', data: populated });
+    const convData = formatConv(populated, currentUserId);
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`conv:${id}`).emit('group_updated', convData);
+    }
+
+    res.json({ success: true, message: 'Group updated successfully', data: convData });
   } catch (error) {
     next(error);
   }
@@ -250,7 +299,11 @@ const updateGroup = async (req, res, next) => {
 const addParticipants = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { participantIds } = req.body;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid group ID' });
+    }
+
+    const { participantIds, participants } = req.body;
     const currentUserId = req.user._id.toString();
 
     const conversation = await Conversation.findById(id);
@@ -263,7 +316,8 @@ const addParticipants = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Only group admins can add members' });
     }
 
-    const toAdd = Array.isArray(participantIds) ? participantIds : [participantIds];
+    const rawList = Array.isArray(participantIds) ? participantIds : (Array.isArray(participants) ? participants : [participantIds || participants]);
+    const toAdd = rawList.filter(Boolean);
     const newMembers = toAdd.filter(
       (uid) => !conversation.participants.some((p) => p.toString() === uid.toString())
     );
@@ -289,7 +343,17 @@ const addParticipants = async (req, res, next) => {
       .populate('participants', 'username email profilePicture bio isOnline lastSeen')
       .populate('admins', 'username email profilePicture');
 
-    res.json({ success: true, message: 'Members added successfully', data: populated });
+    const convData = formatConv(populated, currentUserId);
+
+    const io = req.app.get('io');
+    if (io) {
+      newMembers.forEach((mId) => {
+        io.to(`user:${mId}`).emit('conversation_created', convData);
+      });
+      io.to(`conv:${id}`).emit('group_updated', convData);
+    }
+
+    res.json({ success: true, message: 'Members added successfully', data: convData });
   } catch (error) {
     next(error);
   }
@@ -301,6 +365,10 @@ const addParticipants = async (req, res, next) => {
 const removeParticipant = async (req, res, next) => {
   try {
     const { id, userId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid group ID' });
+    }
+
     const currentUserId = req.user._id.toString();
 
     const conversation = await Conversation.findById(id);
@@ -354,7 +422,15 @@ const removeParticipant = async (req, res, next) => {
       .populate('participants', 'username email profilePicture bio isOnline lastSeen')
       .populate('admins', 'username email profilePicture');
 
-    res.json({ success: true, message: systemNotice, data: populated });
+    const convData = formatConv(populated, currentUserId);
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`conv:${id}`).emit('group_updated', convData);
+      io.to(`user:${userId}`).emit('group_removed', { conversationId: id });
+    }
+
+    res.json({ success: true, message: systemNotice, data: convData });
   } catch (error) {
     next(error);
   }
@@ -366,6 +442,10 @@ const removeParticipant = async (req, res, next) => {
 const toggleAdmin = async (req, res, next) => {
   try {
     const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid group ID' });
+    }
+
     const { targetUserId, action } = req.body; // action: 'promote' | 'demote'
     const currentUserId = req.user._id.toString();
 
@@ -396,7 +476,9 @@ const toggleAdmin = async (req, res, next) => {
       .populate('participants', 'username email profilePicture bio isOnline lastSeen')
       .populate('admins', 'username email profilePicture');
 
-    res.json({ success: true, message: `Role updated successfully`, data: populated });
+    const convData = formatConv(populated, currentUserId);
+
+    res.json({ success: true, message: `Role updated successfully`, data: convData });
   } catch (error) {
     next(error);
   }

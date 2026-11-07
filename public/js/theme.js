@@ -11,6 +11,7 @@
 
   function applyTheme(theme) {
     html.setAttribute('data-theme', theme);
+    html.setAttribute('data-bs-theme', theme);
     localStorage.setItem(STORAGE_KEY, theme);
 
     // Update icon if present

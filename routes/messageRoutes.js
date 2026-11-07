@@ -10,12 +10,13 @@ const {
 } = require('../controllers/messageController');
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
+const { messageLimiter, sanitizeMessage } = require('../middleware/securityMiddleware');
 
 router.get('/:conversationId', protect, getMessages);
-router.post('/', protect, sendMessage);
-router.put('/:id', protect, editMessage);
+router.post('/', protect, messageLimiter, sanitizeMessage, sendMessage);
+router.put('/:id', protect, sanitizeMessage, editMessage);
 router.delete('/:id', protect, deleteMessage);
 router.post('/:conversationId/read', protect, markAsRead);
-router.post('/upload', protect, upload.array('attachments', 5), uploadAttachments);
+router.post('/upload', protect, upload.any(), uploadAttachments);
 
 module.exports = router;

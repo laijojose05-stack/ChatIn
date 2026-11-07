@@ -48,17 +48,24 @@
 
     <!-- User Profile Footer -->
     <div class="sidebar-footer p-3 border-top d-flex align-items-center justify-content-between">
-      <div class="user-meta d-flex align-items-center gap-2 overflow-hidden">
+      <div class="user-meta d-flex align-items-center gap-2 overflow-hidden cursor-pointer" id="userProfilePill" title="Open Settings" data-bs-toggle="modal" data-bs-target="#settingsModal">
         <div class="user-avatar-circle" id="userAvatarCircle">
-          <%= user.username.substring(0, 2).toUpperCase() %>
+          <% if (user.profilePicture) { %>
+            <img src="<%= user.profilePicture %>" alt="<%= user.username %>" class="w-100 h-100 rounded-circle object-fit-cover">
+          <% } else { %>
+            <%= user.username.substring(0, 2).toUpperCase() %>
+          <% } %>
         </div>
         <div class="user-info-text text-truncate">
-          <div class="user-name fw-semibold small text-truncate"><%= user.username %></div>
+          <div class="user-name fw-semibold small text-truncate" id="sidebarUsernameDisplay"><%= user.username %></div>
           <div class="user-sub text-muted extra-small">Online</div>
         </div>
       </div>
 
       <div class="d-flex align-items-center gap-1">
+        <button class="btn btn-icon" id="openSettingsBtn" title="Settings" data-bs-toggle="modal" data-bs-target="#settingsModal">
+          <i class="bi bi-gear"></i>
+        </button>
         <button class="btn btn-icon" id="themeToggleBtn" title="Toggle Theme">
           <i class="bi bi-sun" id="themeIcon"></i>
         </button>
@@ -222,11 +229,483 @@
   </div>
 </div>
 
+<!-- MODAL 3: PROFESSIONAL MASTER-DETAIL WORKSPACE & ACCOUNT SETTINGS -->
+<div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered settings-modal-dialog">
+    <div class="modal-content chatin-modal rounded-4 shadow-lg overflow-hidden border">
+      <!-- Modal Header -->
+      <div class="modal-header border-bottom px-4 py-3 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2">
+          <div class="feature-icon-box p-0 mb-0 rounded-3 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width:34px;height:34px;">
+            <i class="bi bi-gear-wide-connected fs-5"></i>
+          </div>
+          <div>
+            <h5 class="modal-title fw-bold mb-0 lh-1" id="settingsModalLabel">Workspace Settings</h5>
+            <span class="extra-small text-muted">Manage your profile, security, and preferences</span>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <!-- Master-Detail Body -->
+      <div class="modal-body p-0 settings-modal-body">
+        <!-- 1. Left Vertical Navigation Sidebar -->
+        <div class="settings-sidebar-nav p-3" id="settingsSidebarNav">
+          <div class="extra-small text-muted text-uppercase fw-bold px-2 mb-2 tracking-wider">Account</div>
+          <div class="nav flex-column gap-1 mb-3">
+            <button class="settings-nav-item active" data-settings-tab="#pane-profile" type="button">
+              <i class="bi bi-person-badge"></i>
+              <span>My Profile</span>
+            </button>
+            <button class="settings-nav-item" data-settings-tab="#pane-security" type="button">
+              <i class="bi bi-shield-lock"></i>
+              <span>Security & Access</span>
+            </button>
+          </div>
+
+          <div class="extra-small text-muted text-uppercase fw-bold px-2 mb-2 tracking-wider">Workspace</div>
+          <div class="nav flex-column gap-1 mb-3">
+            <button class="settings-nav-item" data-settings-tab="#pane-appearance" type="button">
+              <i class="bi bi-palette"></i>
+              <span>Appearance & Theme</span>
+            </button>
+            <button class="settings-nav-item" data-settings-tab="#pane-sound" type="button">
+              <i class="bi bi-bell"></i>
+              <span>Sounds & Alerts</span>
+            </button>
+            <button class="settings-nav-item" data-settings-tab="#pane-shortcuts" type="button">
+              <i class="bi bi-keyboard"></i>
+              <span>Chat & Shortcuts</span>
+            </button>
+            <button class="settings-nav-item" data-settings-tab="#pane-system" type="button">
+              <i class="bi bi-cpu"></i>
+              <span>System Telemetry</span>
+            </button>
+          </div>
+
+          <!-- Bottom User Mini Pill -->
+          <div class="mt-auto pt-3 border-top border-secondary border-opacity-10 d-flex align-items-center gap-2 px-2">
+            <div class="user-avatar-circle" style="width:32px;height:32px;font-size:0.75rem;">
+              <% if (user.profilePicture) { %>
+                <img src="<%= user.profilePicture %>" alt="<%= user.username %>" class="w-100 h-100 rounded-circle object-fit-cover">
+              <% } else { %>
+                <%= user.username.substring(0, 2).toUpperCase() %>
+              <% } %>
+            </div>
+            <div class="flex-grow-1 overflow-hidden">
+              <div class="fw-semibold extra-small text-truncate"><%= user.username %></div>
+              <div class="text-success extra-small d-flex align-items-center gap-1">
+                <span class="status-dot connected" style="width:6px;height:6px;"></span> Pro Active
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Right Content Pane -->
+        <div class="settings-content-pane">
+          <div class="tab-content" id="settingsTabPanes">
+            <!-- PANE 1: MY PROFILE -->
+            <div class="tab-pane fade show active" id="pane-profile" role="tabpanel">
+              <div class="d-flex align-items-center justify-content-between mb-3">
+                <div>
+                  <h5 class="fw-bold mb-1">My Profile</h5>
+                  <p class="text-muted small mb-0">Manage your avatar, display handle, and public status</p>
+                </div>
+              </div>
+
+              <div id="profileAlert" class="alert d-none py-2 px-3 small rounded-3 mb-3"></div>
+
+              <!-- Profile Form Encompassing Avatar and Fields -->
+              <form id="profileForm">
+                <!-- Profile Cover Banner & Avatar -->
+                <div class="settings-card p-0 overflow-hidden mb-4">
+                  <div class="settings-profile-banner"></div>
+                  <div class="d-flex align-items-end justify-content-between px-3 pb-3">
+                    <div class="d-flex align-items-end gap-3">
+                      <div class="settings-avatar-holder position-relative" title="Click to upload profile photo">
+                        <div id="settingsAvatarDisplay" class="w-100 h-100">
+                          <% if (user.profilePicture) { %>
+                            <img src="<%= user.profilePicture %>" alt="<%= user.username %>" id="settingsAvatarImg" class="w-100 h-100 object-fit-cover">
+                          <% } else { %>
+                            <div class="w-100 h-100 d-flex align-items-center justify-content-center text-white fw-bold fs-4">
+                              <%= user.username.substring(0, 2).toUpperCase() %>
+                            </div>
+                          <% } %>
+                        </div>
+                        <label for="settingsAvatarInput" class="settings-avatar-overlay cursor-pointer" title="Upload new photo">
+                          <i class="bi bi-camera fs-5"></i>
+                        </label>
+                      </div>
+                      <!-- File input separate from preview to avoid DOM destruction on change -->
+                      <input type="file" id="settingsAvatarInput" name="profilePicture" accept="image/*" class="d-none">
+
+                      <div class="mb-1">
+                        <div class="fw-bold fs-6"><%= user.username %></div>
+                        <div class="extra-small text-muted"><%= user.email %></div>
+                      </div>
+                    </div>
+                    <label for="settingsAvatarInput" class="btn btn-sm btn-outline-primary rounded-pill px-3 cursor-pointer mb-1">
+                      <i class="bi bi-upload me-1"></i> Change Photo
+                    </label>
+                  </div>
+                </div>
+
+                <div class="settings-card">
+                  <div class="mb-3">
+                    <label for="settingsUsername" class="form-label small fw-semibold">Username Handle</label>
+                    <div class="input-group custom-input-group">
+                      <span class="input-group-text border-end-0"><i class="bi bi-at"></i></span>
+                      <input type="text" id="settingsUsername" class="form-control border-start-0" value="<%= user.username %>" required minlength="3" maxlength="30">
+                    </div>
+                    <div class="extra-small text-muted mt-1">Letters, numbers, and underscores only (3-30 chars).</div>
+                  </div>
+
+                  <div class="mb-3">
+                    <label for="settingsEmail" class="form-label small fw-semibold">Email Address</label>
+                    <div class="input-group custom-input-group">
+                      <span class="input-group-text border-end-0"><i class="bi bi-envelope"></i></span>
+                      <input type="email" id="settingsEmail" class="form-control border-start-0 text-muted" value="<%= user.email %>" readonly disabled>
+                      <span class="input-group-text bg-transparent text-success border-start-0 small"><i class="bi bi-patch-check-fill me-1"></i> Verified</span>
+                    </div>
+                  </div>
+
+                  <div class="mb-0">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                      <label for="settingsBio" class="form-label small fw-semibold mb-0">About / Status Bio</label>
+                      <span class="extra-small text-muted" id="bioCharCounter">0 / 150</span>
+                    </div>
+                    <textarea id="settingsBio" class="form-control" rows="3" maxlength="150" placeholder="Tell your teammates what you are working on..."><%= user.bio || 'Hey there! I am using ChatIn.' %></textarea>
+                  </div>
+                </div>
+
+                <div class="d-flex justify-content-end mb-2">
+                  <button type="submit" id="saveProfileBtn" class="btn chatin-btn-gradient px-4 py-2 rounded-3 fw-semibold">
+                    <span id="saveProfileText">Save Changes</span>
+                    <span id="saveProfileSpinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
+                  </button>
+                </div>
+              </form>
+            </div>
+
+            <!-- PANE 2: SECURITY & CREDENTIALS -->
+            <div class="tab-pane fade" id="pane-security" role="tabpanel">
+              <div class="mb-3">
+                <h5 class="fw-bold mb-1">Security & Access</h5>
+                <p class="text-muted small mb-0">Manage password security and active authentication sessions</p>
+              </div>
+
+              <div id="passwordAlert" class="alert d-none py-2 px-3 small rounded-3 mb-3"></div>
+
+              <!-- Security Status Overview -->
+              <div class="settings-card d-flex align-items-center justify-content-between mb-3">
+                <div class="d-flex align-items-center gap-3">
+                  <div class="feature-icon-box p-0 mb-0 rounded-3 bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center" style="width:42px;height:42px;">
+                    <i class="bi bi-shield-check fs-4"></i>
+                  </div>
+                  <div>
+                    <div class="fw-bold small">Account Security Status</div>
+                    <div class="extra-small text-muted">Stateless 256-bit JWT Session • bcrypt salted password hashing</div>
+                  </div>
+                </div>
+                <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill small">Protected</span>
+              </div>
+
+              <!-- Password Change Form -->
+              <form id="changePasswordForm">
+                <div class="settings-card mb-3">
+                  <div class="fw-bold small mb-3"><i class="bi bi-key me-1 text-primary"></i> Change Password</div>
+
+                  <div class="mb-3">
+                    <label for="currentPasswordInput" class="form-label small fw-semibold">Current Password</label>
+                    <div class="input-group custom-input-group">
+                      <span class="input-group-text border-end-0"><i class="bi bi-lock"></i></span>
+                      <input type="password" id="currentPasswordInput" class="form-control border-start-0 border-end-0" placeholder="Enter current password" required autocomplete="current-password">
+                      <button class="btn border-start-0" type="button" id="toggleCurrentPassword" title="Show/Hide">
+                        <i class="bi bi-eye" id="eyeIconCurrent"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="mb-3">
+                    <label for="newPasswordInput" class="form-label small fw-semibold">New Password</label>
+                    <div class="input-group custom-input-group">
+                      <span class="input-group-text border-end-0"><i class="bi bi-shield-lock"></i></span>
+                      <input type="password" id="newPasswordInput" class="form-control border-start-0 border-end-0" placeholder="Minimum 6 characters" required minlength="6" autocomplete="new-password">
+                      <button class="btn border-start-0" type="button" id="toggleNewPassword" title="Show/Hide">
+                        <i class="bi bi-eye" id="eyeIconNew"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="mb-0">
+                    <label for="confirmNewPasswordInput" class="form-label small fw-semibold">Confirm New Password</label>
+                    <div class="input-group custom-input-group">
+                      <span class="input-group-text border-end-0"><i class="bi bi-check-circle"></i></span>
+                      <input type="password" id="confirmNewPasswordInput" class="form-control border-start-0 border-end-0" placeholder="Re-enter new password" required minlength="6" autocomplete="new-password">
+                      <button class="btn border-start-0" type="button" id="toggleConfirmNewPassword" title="Show/Hide">
+                        <i class="bi bi-eye" id="eyeIconConfirmNew"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="d-flex justify-content-end mb-4">
+                  <button type="submit" id="updatePasswordBtn" class="btn chatin-btn-gradient px-4 py-2 rounded-3 fw-semibold">
+                    <span id="updatePasswordText">Update Password</span>
+                    <span id="updatePasswordSpinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status"></span>
+                  </button>
+                </div>
+              </form>
+
+              <!-- Active Session Card -->
+              <div class="settings-card">
+                <div class="fw-bold small mb-2"><i class="bi bi-laptop me-1 text-info"></i> Active Session</div>
+                <div class="d-flex align-items-center justify-content-between p-2 rounded bg-body-tertiary">
+                  <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-browser-chrome fs-5 text-primary"></i>
+                    <div>
+                      <div class="extra-small fw-semibold">Current Browser Session</div>
+                      <div class="extra-small text-muted">Windows • Node / Socket.IO Engine</div>
+                    </div>
+                  </div>
+                  <span class="badge bg-success bg-opacity-25 text-success extra-small">Active Now</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANE 3: APPEARANCE & THEMES -->
+            <div class="tab-pane fade" id="pane-appearance" role="tabpanel" tabindex="0">
+              <div class="mb-3">
+                <h5 class="fw-bold mb-1">Appearance & Themes</h5>
+                <p class="text-muted small mb-0">Customize visual theme, accent colors, and chat density</p>
+              </div>
+
+              <!-- Theme Cards Selector -->
+              <div class="settings-card mb-4">
+                <div class="fw-bold small mb-3"><i class="bi bi-brush me-1 text-primary"></i> Color Mode</div>
+                <div class="row g-3">
+                  <div class="col-sm-6">
+                    <div class="theme-card-option" id="cardThemeDark">
+                      <div class="theme-card-preview" style="background: #0b0f19;">
+                        <div class="preview-sidebar" style="background: #111625; border-right: 1px solid rgba(255,255,255,0.08);"></div>
+                        <div class="preview-body">
+                          <div class="preview-bar" style="background: #6366f1; width: 60%;"></div>
+                          <div class="preview-bar" style="background: #1c2438; width: 85%;"></div>
+                          <div class="preview-bar" style="background: #1c2438; width: 45%;"></div>
+                        </div>
+                      </div>
+                      <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                          <div class="fw-bold small">Obsidian Dark</div>
+                          <div class="extra-small text-muted">Deep slate & obsidian dark contrast</div>
+                        </div>
+                        <i class="bi bi-check-circle-fill text-primary fs-5" id="checkIconDark"></i>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="col-sm-6">
+                    <div class="theme-card-option" id="cardThemeLight">
+                      <div class="theme-card-preview" style="background: #f4f6fa;">
+                        <div class="preview-sidebar" style="background: #ffffff; border-right: 1px solid rgba(0,0,0,0.08);"></div>
+                        <div class="preview-body">
+                          <div class="preview-bar" style="background: #6366f1; width: 60%;"></div>
+                          <div class="preview-bar" style="background: #e2e8f0; width: 85%;"></div>
+                          <div class="preview-bar" style="background: #e2e8f0; width: 45%;"></div>
+                        </div>
+                      </div>
+                      <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                          <div class="fw-bold small">Crisp Light</div>
+                          <div class="extra-small text-muted">High-clarity clean light surfaces</div>
+                        </div>
+                        <i class="bi bi-circle text-muted fs-5" id="checkIconLight"></i>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Accent Color Palette -->
+              <div class="settings-card mb-4">
+                <div class="fw-bold small mb-2"><i class="bi bi-droplet-half me-1 text-primary"></i> Workspace Accent Color</div>
+                <div class="d-flex align-items-center gap-3">
+                  <div class="accent-color-pill active" style="background: #6366f1;" data-color="#6366f1" title="Indigo (Default)"></div>
+                  <div class="accent-color-pill" style="background: #8b5cf6;" data-color="#8b5cf6" title="Violet"></div>
+                  <div class="accent-color-pill" style="background: #10b981;" data-color="#10b981" title="Emerald"></div>
+                  <div class="accent-color-pill" style="background: #0ea5e9;" data-color="#0ea5e9" title="Sky Cyan"></div>
+                  <div class="accent-color-pill" style="background: #f43f5e;" data-color="#f43f5e" title="Rose"></div>
+                </div>
+              </div>
+
+              <!-- Chat Density -->
+              <div class="settings-card">
+                <div class="d-flex align-items-center justify-content-between">
+                  <div>
+                    <div class="fw-bold small mb-1">Comfortable Message Spacing</div>
+                    <div class="extra-small text-muted">Spacious chat bubbles with full avatar previews</div>
+                  </div>
+                  <div class="form-check form-switch fs-5 mb-0">
+                    <input class="form-check-input" type="checkbox" id="settingsDensityToggle" checked>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANE 4: SOUNDS & ALERTS -->
+            <div class="tab-pane fade" id="pane-sound" role="tabpanel" tabindex="0">
+              <div class="mb-3">
+                <h5 class="fw-bold mb-1">Sounds & Notifications</h5>
+                <p class="text-muted small mb-0">Control audio chimes and incoming message alerts</p>
+              </div>
+
+              <!-- Real-time Chime Card -->
+              <div class="settings-card mb-3">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                  <div>
+                    <div class="fw-bold small mb-1"><i class="bi bi-bell me-1 text-warning"></i> Incoming Message Audio Chime</div>
+                    <div class="extra-small text-muted">Play a subtle 2-tone chime when new messages arrive</div>
+                  </div>
+                  <div class="form-check form-switch fs-5 mb-0">
+                    <input class="form-check-input" type="checkbox" id="settingsSoundToggle" checked>
+                  </div>
+                </div>
+
+                <div class="pt-3 border-top border-secondary border-opacity-10 d-flex align-items-center justify-content-between">
+                  <div class="extra-small text-muted">Test sound playback with Web Audio Synthesizer:</div>
+                  <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" id="testChimeBtn">
+                    <i class="bi bi-play-fill me-1"></i> Test Chime
+                  </button>
+                </div>
+              </div>
+
+              <!-- Push Notifications -->
+              <div class="settings-card">
+                <div class="d-flex align-items-center justify-content-between">
+                  <div>
+                    <div class="fw-bold small mb-1"><i class="bi bi-app-indicator me-1 text-info"></i> Browser Desktop Notifications</div>
+                    <div class="extra-small text-muted">Receive pop-ups when ChatIn is running in the background</div>
+                  </div>
+                  <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" id="requestPushBtn">
+                    Enable
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANE 5: CHAT & SHORTCUTS -->
+            <div class="tab-pane fade" id="pane-shortcuts" role="tabpanel" tabindex="0">
+              <div class="mb-3">
+                <h5 class="fw-bold mb-1">Chat & Keyboard Shortcuts</h5>
+                <p class="text-muted small mb-0">Keyboard bindings and composer preferences</p>
+              </div>
+
+              <!-- Enter to Send -->
+              <div class="settings-card mb-3">
+                <div class="d-flex align-items-center justify-content-between">
+                  <div>
+                    <div class="fw-bold small mb-1"><i class="bi bi-keyboard me-1 text-success"></i> Press Enter to Send</div>
+                    <div class="extra-small text-muted">When enabled, pressing <span class="keycap-badge">↵ Enter</span> sends message immediately. Use <span class="keycap-badge">Shift + Enter</span> for newlines.</div>
+                  </div>
+                  <div class="form-check form-switch fs-5 mb-0">
+                    <input class="form-check-input" type="checkbox" id="settingsEnterToSendToggle" checked>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Keyboard Shortcuts Table -->
+              <div class="settings-card">
+                <div class="fw-bold small mb-3"><i class="bi bi-command me-1 text-primary"></i> Keyboard Shortcuts Reference</div>
+                <div class="d-flex flex-column gap-2">
+                  <div class="d-flex align-items-center justify-content-between py-1 border-bottom border-secondary border-opacity-10">
+                    <span class="small">Send message</span>
+                    <div><span class="keycap-badge">↵ Enter</span></div>
+                  </div>
+                  <div class="d-flex align-items-center justify-content-between py-1 border-bottom border-secondary border-opacity-10">
+                    <span class="small">Insert line break</span>
+                    <div><span class="keycap-badge">⇧ Shift</span> + <span class="keycap-badge">↵ Enter</span></div>
+                  </div>
+                  <div class="d-flex align-items-center justify-content-between py-1 border-bottom border-secondary border-opacity-10">
+                    <span class="small">Open user search</span>
+                    <div><span class="keycap-badge">Ctrl</span> + <span class="keycap-badge">K</span></div>
+                  </div>
+                  <div class="d-flex align-items-center justify-content-between py-1">
+                    <span class="small">Close open modal / dialog</span>
+                    <div><span class="keycap-badge">Esc</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- PANE 6: SYSTEM TELEMETRY -->
+            <div class="tab-pane fade" id="pane-system" role="tabpanel" tabindex="0">
+              <div class="mb-3">
+                <h5 class="fw-bold mb-1">System & Telemetry</h5>
+                <p class="text-muted small mb-0">Live engine performance, server connectivity, and cache</p>
+              </div>
+
+              <!-- Telemetry Metrics Card -->
+              <div class="settings-card mb-3">
+                <div class="row g-3">
+                  <div class="col-6 col-md-3">
+                    <div class="extra-small text-muted mb-1">Socket.IO State</div>
+                    <div class="fw-bold small d-flex align-items-center gap-1 text-success">
+                      <span class="status-dot connected" style="width:7px;height:7px;"></span> Connected
+                    </div>
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <div class="extra-small text-muted mb-1">Server Latency</div>
+                    <div class="fw-bold small text-primary" id="telemetryLatencyVal">-- ms</div>
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <div class="extra-small text-muted mb-1">Database Cluster</div>
+                    <div class="fw-bold small text-body">MongoDB Atlas</div>
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <div class="extra-small text-muted mb-1">ChatIn Version</div>
+                    <div class="fw-bold small text-body">v2.5.0 Pro</div>
+                  </div>
+                </div>
+
+                <div class="pt-3 mt-3 border-top border-secondary border-opacity-10 d-flex align-items-center justify-content-between">
+                  <span class="extra-small text-muted">Test real-time round-trip latency to Express API:</span>
+                  <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" id="runLatencyTestBtn">
+                    <i class="bi bi-speedometer2 me-1"></i> Ping Server
+                  </button>
+                </div>
+              </div>
+
+              <!-- Storage & Cache -->
+              <div class="settings-card">
+                <div class="d-flex align-items-center justify-content-between">
+                  <div>
+                    <div class="fw-bold small mb-1"><i class="bi bi-trash3 me-1 text-danger"></i> Reset Local Cache</div>
+                    <div class="extra-small text-muted">Clears local storage preferences and cached UI state</div>
+                  </div>
+                  <button type="button" class="btn btn-sm btn-outline-danger rounded-pill px-3" id="clearCacheBtn">
+                    Clear Cache
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Socket.IO Client Library -->
 <script src="/socket.io/socket.io.js"></script>
 <!-- Client-side Chat Logic -->
 <script>
-  window.CURRENT_USER = <%- JSON.stringify({ _id: user._id, username: user.username, email: user.email }) %>;
+  window.CURRENT_USER = <%- JSON.stringify({
+    _id: user._id,
+    username: user.username,
+    email: user.email,
+    bio: user.bio || '',
+    profilePicture: user.profilePicture || ''
+  }) %>;
 </script>
 <script src="/js/chat.js"></script>
 

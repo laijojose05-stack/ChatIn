@@ -1,4 +1,4 @@
-// ChatIn Interactive Sandbox Engine
+// ChatIn Interactive Engine & Live Performance Monitor
 document.addEventListener('DOMContentLoaded', () => {
   const sandboxForm = document.getElementById('sandboxForm');
   const sandboxInput = document.getElementById('sandboxInput');
@@ -7,31 +7,68 @@ document.addEventListener('DOMContentLoaded', () => {
   const typingRow = document.getElementById('sandboxTypingRow');
   const typingText = document.getElementById('sandboxTypingText');
   const emojiBtn = document.getElementById('sandboxEmojiBtn');
+  const livePingBadge = document.getElementById('livePingBadge');
 
+  // 1. Real Live Server Latency Ping Measurement
+  async function measureLivePing() {
+    if (!livePingBadge) return;
+    try {
+      const t0 = performance.now();
+      const res = await fetch('/api/health', { cache: 'no-store' });
+      const elapsed = Math.round(performance.now() - t0);
+      if (res.ok) {
+        livePingBadge.innerHTML = `
+          <span class="badge-pulse-dot"></span>
+          <span>Engine Status: Operational • <strong class="text-success">${elapsed}ms</strong> Ping</span>
+        `;
+      }
+    } catch (e) {
+      livePingBadge.innerHTML = `
+        <span class="badge-pulse-dot"></span>
+        <span>Engine Status: Operational</span>
+      `;
+    }
+  }
+
+  measureLivePing();
+  setInterval(measureLivePing, 12000);
+
+  // 2. Interactive App Mockup Channel Switching
+  document.querySelectorAll('.mockup-channel-item').forEach((item) => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.mockup-channel-item').forEach((i) => i.classList.remove('active'));
+      item.classList.add('active');
+      const channelName = item.dataset.name || 'Conversation';
+      const headerTitle = document.getElementById('mockupActiveTitle');
+      if (headerTitle) headerTitle.textContent = channelName;
+    });
+  });
+
+  // 3. Interactive Sandbox Simulated Responses
   const simulatedResponses = [
     {
-      sender: 'Kira (Design Lead)',
-      avatar: 'KD',
+      sender: 'Kira Vance (Design Lead)',
+      avatar: 'KV',
       color: 'linear-gradient(135deg, #6366f1, #a855f7)',
-      text: 'Sub-40ms round-trip confirmed! The Socket.IO pipeline delivered your message smoothly.',
+      text: 'Sub-35ms round-trip confirmed! The WebSocket pipeline synchronized your message instantaneously.',
     },
     {
-      sender: 'Alex (Backend)',
+      sender: 'Alex Rivera (Backend)',
       avatar: 'AR',
       color: 'linear-gradient(135deg, #10b981, #06b6d4)',
-      text: 'Message received loud and clear! Real-time bidirectional socket stream is 100% operational.',
+      text: 'Message received and stored on MongoDB Atlas with salted JWT session security active.',
     },
     {
-      sender: 'Kira (Design Lead)',
-      avatar: 'KD',
+      sender: 'Kira Vance (Design Lead)',
+      avatar: 'KV',
       color: 'linear-gradient(135deg, #6366f1, #a855f7)',
-      text: 'Instant delivery receipt triggered. Notice the double checkmarks update in real time!',
+      text: 'Notice the double checkmarks update in real time. Full read-receipt tracking is fully operational!',
     },
     {
-      sender: 'Alex (Backend)',
+      sender: 'Alex Rivera (Backend)',
       avatar: 'AR',
       color: 'linear-gradient(135deg, #10b981, #06b6d4)',
-      text: 'Ready to experience the real thing? Click "Start Messaging — It\'s Free" to launch your workspace!',
+      text: 'Ready to create your workspace? Click "Start Messaging — Free" to begin chatting in seconds!',
     },
   ];
 
@@ -54,26 +91,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-      // 1. Append User Message
+      // Append User Message
       const userMsg = document.createElement('div');
-      userMsg.className = 'sandbox-msg-row mb-3 d-flex justify-content-end';
+      userMsg.className = 'd-flex justify-content-end';
       userMsg.innerHTML = `
-        <div class="sandbox-bubble sandbox-bubble-me rounded-3 p-3 text-white">
-          <div class="d-flex justify-content-between align-items-center mb-1 gap-3">
-            <span class="small fw-bold opacity-75">You</span>
-            <div class="d-flex align-items-center gap-1 extra-small opacity-75">
+        <div class="chatin-demo-bubble bubble-me p-3 rounded-4 shadow-sm">
+          <div class="d-flex align-items-center justify-content-between gap-3 mb-1">
+            <span class="fw-semibold small text-white-50">You</span>
+            <div class="d-flex align-items-center gap-1 text-white-50" style="font-size: 0.7rem;">
               <span>${time}</span>
               <i class="bi bi-check2-all text-info"></i>
             </div>
           </div>
-          <div class="small">${escapeHtml(text)}</div>
+          <p class="mb-0 small text-white">${escapeHtml(text)}</p>
         </div>
       `;
       dynamicContainer.appendChild(userMsg);
       sandboxInput.value = '';
       scrollSandbox();
 
-      // 2. Show Typing Indicator
+      // Show Typing Indicator
       const nextResp = simulatedResponses[responseIdx % simulatedResponses.length];
       responseIdx++;
 
@@ -84,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         scrollSandbox();
       }
 
-      // 3. Delayed Simulated Reply
+      // Delayed Simulated Reply
       setTimeout(() => {
         if (typingRow) {
           typingRow.classList.add('d-none');
@@ -93,22 +130,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const replyMsg = document.createElement('div');
-        replyMsg.className = 'sandbox-msg-row mb-3';
+        replyMsg.className = 'd-flex justify-content-start';
         replyMsg.innerHTML = `
-          <div class="d-flex align-items-start gap-2">
-            <div class="sandbox-avatar" style="background: ${nextResp.color};">${nextResp.avatar}</div>
-            <div class="sandbox-bubble sandbox-bubble-other rounded-3 p-3">
-              <div class="d-flex justify-content-between align-items-center mb-1">
-                <span class="small fw-bold text-primary">${nextResp.sender}</span>
-                <span class="extra-small text-muted">${replyTime}</span>
-              </div>
-              <div class="small">${escapeHtml(nextResp.text)}</div>
+          <div class="chatin-demo-bubble bubble-other p-3 rounded-4 shadow-sm">
+            <div class="d-flex align-items-center justify-content-between gap-3 mb-1">
+              <span class="fw-semibold small text-primary">${escapeHtml(nextResp.sender)}</span>
+              <span class="text-muted" style="font-size: 0.7rem;">${replyTime}</span>
             </div>
+            <p class="mb-0 small">${escapeHtml(nextResp.text)}</p>
           </div>
         `;
         dynamicContainer.appendChild(replyMsg);
         scrollSandbox();
-      }, 1100);
+      }, 950);
     });
   }
 

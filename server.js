@@ -5,11 +5,13 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const morgan = require('morgan');
+const helmet = require('helmet');
 const { Server } = require('socket.io');
 
 const connectDB = require('./config/db');
 const { registerSocketHandlers } = require('./sockets/socketHandler');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
+const { apiLimiter } = require('./middleware/securityMiddleware');
 
 // Route imports
 const pageRoutes = require('./routes/pageRoutes');
@@ -30,6 +32,7 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 // Core Middlewares
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: true, credentials: true }));
 app.use(cookieParser());
 app.use(express.json({ limit: '15mb' }));
@@ -45,6 +48,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 // Page Routes (Views)
 app.use('/', pageRoutes);
+
+// Apply API Rate Limiting to all /api endpoints
+app.use('/api', apiLimiter);
 
 // API Routes
 app.use('/api/auth', authRoutes);
