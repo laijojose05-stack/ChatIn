@@ -420,6 +420,109 @@ const uploadAttachments = async (req, res, next) => {
   }
 };
 
+// @desc    Toggle emoji reaction on a message
+// @route   POST /api/messages/:id/react
+// @access  Private
+const toggleReaction = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { emoji } = req.body;
+    const currentUserId = req.user._id.toString();
+
+    if (!emoji) {
+      return res.status(400).json({ success: false, message: 'Emoji is required' });
+    }
+
+    const message = await Message.findById(id);
+    if (!message) {
+      return res.status(404).json({ success: false, message: 'Message not found' });
+    }
+
+    if (!Array.isArray(message.reactions)) {
+      message.reactions = [];
+    }
+
+    // Check if user already reacted with this emoji
+    const existingIndex = message.reactions.findIndex(
+      (r) => r.user.toString() === currentUserId && r.emoji === emoji
+    );
+
+    if (existingIndex > -1) {
+      message.reactions.splice(existingIndex, 1);
+    } else {
+      message.reactions.push({
+        emoji,
+        user: req.user._id,
+        createdAt: new Date(),
+      });
+    }
+
+    await message.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`conv:${message.conversationId}`).emit('message_reaction', {
+        conversationId: message.conversationId,
+        messageId: message._id,
+        reactions: message.reactions,
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        messageId: message._id,
+        reactions: message.reactions,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Clear messages in a conversation
+// @route   POST /api/messages/:conversationId/clear
+// @access  Private
+const clearConversationHistory = async (req, res, next) => {
+  try {
+    const { conversationId } = req.params;
+    const currentUserId = req.user._id;
+
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return res.status(404).json({ success: false, message: 'Conversation not found' });
+    }
+
+    const isParticipant = conversation.participants.some(
+      (p) => p.toString() === currentUserId.toString()
+    );
+    if (!isParticipant) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    // Mark messages deleted in conversation
+    await Message.updateMany(
+      { conversationId },
+      {
+        $set: {
+          deletedAt: new Date(),
+          content: 'This message was deleted',
+          attachments: [],
+        },
+      }
+    );
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`conv:${conversationId}`).emit('conversation_cleared', { conversationId });
+    }
+
+    res.json({ success: true, message: 'Conversation history cleared' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getMessages,
   sendMessage,
@@ -428,4 +531,6 @@ module.exports = {
   markAsRead,
   markAsDelivered,
   uploadAttachments,
+  toggleReaction,
+  clearConversationHistory,
 };

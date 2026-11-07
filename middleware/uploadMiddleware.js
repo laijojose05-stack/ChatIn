@@ -22,14 +22,14 @@ const storage = multer.diskStorage({
 
 // File filter
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png|webp|gif|pdf|docx|txt|zip/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype.toLowerCase());
+  const allowedTypes = /jpeg|jpg|png|webp|gif|pdf|docx|txt|zip|webm|mp3|wav|ogg|m4a|aac|mp4|audio/;
+  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase().replace('.', ''));
+  const mimetype = allowedTypes.test(file.mimetype.toLowerCase()) || file.mimetype.startsWith('audio/') || file.mimetype.startsWith('image/');
 
-  if (extname && mimetype) {
+  if (extname || mimetype) {
     return cb(null, true);
   }
-  cb(new Error('Unsupported file type. Only images and documents are allowed.'));
+  cb(new Error('Unsupported file type. Only images, audio, and documents are allowed.'));
 };
 
 const upload = multer({

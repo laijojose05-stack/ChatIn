@@ -201,6 +201,20 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
+    // Message reaction updated
+    socket.on('message_reaction', ({ conversationId, messageId, reactions }) => {
+      if (activeConversation && activeConversation._id === conversationId) {
+        updateMessageReactionsDom(messageId, reactions);
+      }
+    });
+
+    // Conversation cleared
+    socket.on('conversation_cleared', ({ conversationId }) => {
+      if (activeConversation && activeConversation._id === conversationId) {
+        loadMessages(activeConversation);
+      }
+    });
+
     // New conversation / group created
     socket.on('conversation_created', () => {
       loadConversations();
@@ -400,6 +414,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (unreadEl) unreadEl.remove();
     conv.unreadCount = 0;
 
+    // Reset P2P search, reply, audio, and scroll state for new conversation
+    if (typeof closeInChatSearch === 'function') closeInChatSearch();
+    if (typeof cancelReply === 'function') cancelReply();
+    if (typeof cancelAudioRecording === 'function') cancelAudioRecording();
+    if (typeof resetScrollToBottom === 'function') resetScrollToBottom();
+
     // Show active chat wrapper
     if (emptyChatState) emptyChatState.classList.add('d-none');
     if (activeChatWrapper) {
@@ -505,6 +525,662 @@ document.addEventListener('DOMContentLoaded', () => {
     return `<i id="tick-${msg._id}" class="bi bi-check2 text-secondary" title="Sent to server"></i>`;
   }
 
+  // ==========================================================================
+  // P2P Advanced Features: Toasts, Replies, Reactions, Audio & Actions
+  // ==========================================================================
+
+  function showToast(msg) {
+    let toast = document.getElementById('chatinToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'chatinToast';
+      toast.className = 'position-fixed bottom-0 start-50 translate-middle-x mb-4 py-2 px-3 rounded-pill bg-dark text-white shadow-lg extra-small fw-semibold border border-secondary';
+      toast.style.zIndex = '9999';
+      toast.style.transition = 'opacity 0.2s ease';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.style.opacity = '1';
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(() => {
+      toast.style.opacity = '0';
+    }, 2000);
+  }
+
+  // Reply State
+  let pendingReplyTo = null;
+  const replyBar = document.getElementById('replyBar');
+  const replySenderName = document.getElementById('replySenderName');
+  const replyTextPreview = document.getElementById('replyTextPreview');
+  const cancelReplyBtn = document.getElementById('cancelReplyBtn');
+
+  window.startReplyToMessage = (msgId, sender, text) => {
+    pendingReplyTo = { id: msgId, sender, text };
+    if (replySenderName) replySenderName.textContent = `Replying to ${sender}`;
+    if (replyTextPreview) replyTextPreview.textContent = text || 'Attachment';
+    if (replyBar) {
+      replyBar.classList.remove('d-none');
+      replyBar.classList.add('d-flex');
+    }
+    if (messageInput) messageInput.focus();
+  };
+
+  function cancelReply() {
+    pendingReplyTo = null;
+    if (replyBar) {
+      replyBar.classList.add('d-none');
+      replyBar.classList.remove('d-flex');
+    }
+  }
+
+  if (cancelReplyBtn) cancelReplyBtn.addEventListener('click', cancelReply);
+
+  // 1. Scroll To Message & Highlight
+  window.scrollToMessage = (msgId) => {
+    if (!msgId) return;
+    const targetRow = document.querySelector(`.message-row[data-id="${msgId}"]`);
+    if (targetRow) {
+      targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      targetRow.classList.add('highlighted');
+      setTimeout(() => targetRow.classList.remove('highlighted'), 2000);
+    }
+  };
+
+  // 2. Copy Message Text
+  window.copyMessageText = async (text) => {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast('Copied to clipboard');
+    } catch (e) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      showToast('Copied to clipboard');
+    }
+  };
+
+  // 3. Delete Message
+  window.deleteMessageById = async (msgId) => {
+    if (!msgId) return;
+    if (!confirm('Delete this message for everyone?')) return;
+    try {
+      const res = await fetch(`/api/messages/${msgId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        const row = document.querySelector(`.message-row[data-id="${msgId}"]`);
+        if (row) {
+          const textEl = row.querySelector('.msg-text');
+          if (textEl) {
+            textEl.textContent = 'This message was deleted';
+            textEl.classList.add('fst-italic');
+          }
+          const attachEl = row.querySelector('.msg-img-attachment, .msg-file-attachment, .audio-msg-player');
+          if (attachEl) attachEl.remove();
+          const actionsBar = row.querySelector('.msg-actions-bar');
+          if (actionsBar) actionsBar.remove();
+        }
+      }
+    } catch (e) {
+      alert('Failed to delete message');
+    }
+  };
+
+  // 4. Toggle Emoji Reaction
+  window.toggleReaction = async (msgId, emoji) => {
+    if (!msgId || !emoji) return;
+    try {
+      const res = await fetch(`/api/messages/${msgId}/react`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emoji }),
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        updateMessageReactionsDom(data.data.messageId, data.data.reactions);
+        if (socket && socket.connected && activeConversation) {
+          socket.emit('message_reaction', {
+            conversationId: activeConversation._id,
+            messageId: data.data.messageId,
+            reactions: data.data.reactions,
+          });
+        }
+      }
+    } catch (e) {}
+  };
+
+  function updateMessageReactionsDom(msgId, reactions) {
+    const row = document.querySelector(`.message-row[data-id="${msgId}"]`);
+    if (!row) return;
+    const bubble = row.querySelector('.message-bubble');
+    if (!bubble) return;
+
+    let rowReactions = row.querySelector('.msg-reactions-row');
+    if (!Array.isArray(reactions) || reactions.length === 0) {
+      if (rowReactions) rowReactions.remove();
+      return;
+    }
+
+    const currentUserIdStr = (currentUser._id || '').toString();
+    const counts = {};
+    const myReactions = new Set();
+    reactions.forEach((r) => {
+      counts[r.emoji] = (counts[r.emoji] || 0) + 1;
+      const rUserId = (r.user?._id || r.user || '').toString();
+      if (rUserId === currentUserIdStr) myReactions.add(r.emoji);
+    });
+
+    const pills = Object.entries(counts).map(([emoji, count]) => {
+      const hasReacted = myReactions.has(emoji);
+      return `<span class="msg-reaction-pill ${hasReacted ? 'reacted' : ''}" onclick="window.toggleReaction('${msgId}', '${emoji}')">${emoji} <span class="extra-small fw-bold">${count}</span></span>`;
+    }).join('');
+
+    if (!rowReactions) {
+      rowReactions = document.createElement('div');
+      rowReactions.className = 'msg-reactions-row';
+      rowReactions.id = `reactions-${msgId}`;
+      const meta = bubble.querySelector('.msg-meta');
+      if (meta) {
+        bubble.insertBefore(rowReactions, meta);
+      } else {
+        bubble.appendChild(rowReactions);
+      }
+    }
+    rowReactions.innerHTML = pills;
+  }
+
+  // 5. Toggle Audio Playback
+  window.toggleAudioPlay = (msgId) => {
+    const audio = document.getElementById(`audio-${msgId}`);
+    const btn = document.getElementById(`audioBtn-${msgId}`);
+    const timer = document.getElementById(`audioTime-${msgId}`);
+    if (!audio || !btn) return;
+
+    if (audio.paused) {
+      document.querySelectorAll('audio').forEach(a => { if (a !== audio) a.pause(); });
+      document.querySelectorAll('.audio-play-btn i').forEach(i => i.className = 'bi bi-play-fill fs-5');
+      audio.play();
+      btn.innerHTML = '<i class="bi bi-pause-fill fs-5"></i>';
+    } else {
+      audio.pause();
+      btn.innerHTML = '<i class="bi bi-play-fill fs-5"></i>';
+    }
+
+    audio.ontimeupdate = () => {
+      if (timer) {
+        const mins = Math.floor(audio.currentTime / 60);
+        const secs = Math.floor(audio.currentTime % 60).toString().padStart(2, '0');
+        timer.textContent = `${mins}:${secs}`;
+      }
+    };
+
+    audio.onended = () => {
+      btn.innerHTML = '<i class="bi bi-play-fill fs-5"></i>';
+    };
+  };
+
+  // ==========================================================================
+  // In-Chat Message Search Engine
+  // ==========================================================================
+  const chatSearchToggleBtn = document.getElementById('chatSearchToggleBtn');
+  const inChatSearchBar = document.getElementById('inChatSearchBar');
+  const inChatSearchInput = document.getElementById('inChatSearchInput');
+  const searchMatchCount = document.getElementById('searchMatchCount');
+  const searchPrevBtn = document.getElementById('searchPrevBtn');
+  const searchNextBtn = document.getElementById('searchNextBtn');
+  const closeSearchBtn = document.getElementById('closeSearchBtn');
+
+  let currentSearchMatches = [];
+  let currentSearchIndex = -1;
+
+  function clearSearchHighlights() {
+    document.querySelectorAll('.message-row.highlighted').forEach((el) => el.classList.remove('highlighted'));
+  }
+
+  function closeInChatSearch() {
+    if (inChatSearchBar) {
+      inChatSearchBar.classList.add('d-none');
+      inChatSearchBar.classList.remove('d-flex');
+    }
+    if (inChatSearchInput) inChatSearchInput.value = '';
+    if (searchMatchCount) searchMatchCount.textContent = '0 matches';
+    currentSearchMatches = [];
+    currentSearchIndex = -1;
+    clearSearchHighlights();
+  }
+
+  function performInChatSearch() {
+    clearSearchHighlights();
+    const query = inChatSearchInput ? inChatSearchInput.value.trim().toLowerCase() : '';
+    if (!query) {
+      currentSearchMatches = [];
+      currentSearchIndex = -1;
+      if (searchMatchCount) searchMatchCount.textContent = '0 matches';
+      return;
+    }
+
+    const rows = Array.from(document.querySelectorAll('#messagesStream .message-row'));
+    currentSearchMatches = rows.filter((row) => {
+      const textEl = row.querySelector('.msg-text');
+      if (!textEl) return false;
+      return textEl.textContent.toLowerCase().includes(query);
+    });
+
+    if (currentSearchMatches.length > 0) {
+      currentSearchIndex = currentSearchMatches.length - 1; // Start with the most recent match
+      highlightMatch(currentSearchIndex);
+    } else {
+      currentSearchIndex = -1;
+      if (searchMatchCount) searchMatchCount.textContent = '0 matches';
+    }
+  }
+
+  function highlightMatch(index) {
+    if (currentSearchMatches.length === 0) return;
+    clearSearchHighlights();
+    const target = currentSearchMatches[index];
+    if (target) {
+      target.classList.add('highlighted');
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (searchMatchCount) {
+        searchMatchCount.textContent = `${index + 1} of ${currentSearchMatches.length}`;
+      }
+    }
+  }
+
+  function stepSearchMatch(delta) {
+    if (currentSearchMatches.length === 0) return;
+    currentSearchIndex = (currentSearchIndex + delta + currentSearchMatches.length) % currentSearchMatches.length;
+    highlightMatch(currentSearchIndex);
+  }
+
+  if (chatSearchToggleBtn) {
+    chatSearchToggleBtn.addEventListener('click', () => {
+      if (!inChatSearchBar) return;
+      const isOpen = !inChatSearchBar.classList.contains('d-none');
+      if (isOpen) {
+        closeInChatSearch();
+      } else {
+        inChatSearchBar.classList.remove('d-none');
+        inChatSearchBar.classList.add('d-flex');
+        if (inChatSearchInput) {
+          inChatSearchInput.focus();
+          if (inChatSearchInput.value) performInChatSearch();
+        }
+      }
+    });
+  }
+
+  if (closeSearchBtn) closeSearchBtn.addEventListener('click', closeInChatSearch);
+
+  if (inChatSearchInput) {
+    inChatSearchInput.addEventListener('input', performInChatSearch);
+    inChatSearchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          stepSearchMatch(-1);
+        } else {
+          stepSearchMatch(1);
+        }
+      } else if (e.key === 'Escape') {
+        closeInChatSearch();
+      }
+    });
+  }
+
+  if (searchNextBtn) searchNextBtn.addEventListener('click', () => stepSearchMatch(1));
+  if (searchPrevBtn) searchPrevBtn.addEventListener('click', () => stepSearchMatch(-1));
+
+  // ==========================================================================
+  // Scroll-to-Bottom Floating Button & Unread Badge
+  // ==========================================================================
+  const scrollToBottomBtn = document.getElementById('scrollToBottomBtn');
+  const unreadScrollBadge = document.getElementById('unreadScrollBadge');
+  let unreadScrollCount = 0;
+
+  function resetScrollToBottom() {
+    unreadScrollCount = 0;
+    if (unreadScrollBadge) {
+      unreadScrollBadge.classList.add('d-none');
+      unreadScrollBadge.textContent = '0';
+    }
+    if (scrollToBottomBtn) {
+      scrollToBottomBtn.classList.add('d-none');
+      scrollToBottomBtn.classList.remove('d-flex');
+    }
+  }
+
+  function updateScrollToBottomVisibility() {
+    if (!messagesViewport || !scrollToBottomBtn) return;
+    const distanceToBottom = messagesViewport.scrollHeight - messagesViewport.scrollTop - messagesViewport.clientHeight;
+    if (distanceToBottom > 160) {
+      scrollToBottomBtn.classList.remove('d-none');
+      scrollToBottomBtn.classList.add('d-flex');
+    } else {
+      resetScrollToBottom();
+    }
+  }
+
+  function incrementUnreadScrollBadge() {
+    unreadScrollCount += 1;
+    if (unreadScrollBadge && scrollToBottomBtn) {
+      unreadScrollBadge.textContent = unreadScrollCount > 99 ? '99+' : unreadScrollCount;
+      unreadScrollBadge.classList.remove('d-none');
+      scrollToBottomBtn.classList.remove('d-none');
+      scrollToBottomBtn.classList.add('d-flex');
+    }
+  }
+
+  if (messagesViewport) {
+    messagesViewport.addEventListener('scroll', updateScrollToBottomVisibility);
+  }
+
+  if (scrollToBottomBtn) {
+    scrollToBottomBtn.addEventListener('click', () => {
+      if (messagesViewport) {
+        messagesViewport.scrollTo({ top: messagesViewport.scrollHeight, behavior: 'smooth' });
+      }
+      unreadScrollCount = 0;
+      if (unreadScrollBadge) {
+        unreadScrollBadge.classList.add('d-none');
+        unreadScrollBadge.textContent = '0';
+      }
+    });
+  }
+
+  // ==========================================================================
+  // Audio Voice Note Recorder & Sender (MediaRecorder API)
+  // ==========================================================================
+  const micBtn = document.getElementById('micBtn');
+  const audioRecordBar = document.getElementById('audioRecordBar');
+  const recordTimer = document.getElementById('recordTimer');
+  const cancelRecordBtn = document.getElementById('cancelRecordBtn');
+  const sendRecordBtn = document.getElementById('sendRecordBtn');
+
+  let mediaRecorder = null;
+  let audioStream = null;
+  let audioChunks = [];
+  let recordTimerInterval = null;
+  let recordStartTime = 0;
+
+  async function startAudioRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      alert('Microphone access is not supported on this browser.');
+      return;
+    }
+
+    try {
+      audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunks = [];
+      const options = { mimeType: 'audio/webm' };
+      if (!MediaRecorder.isTypeSupported('audio/webm')) {
+        options.mimeType = MediaRecorder.isTypeSupported('audio/ogg') ? 'audio/ogg' : '';
+      }
+
+      mediaRecorder = options.mimeType ? new MediaRecorder(audioStream, options) : new MediaRecorder(audioStream);
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          audioChunks.push(e.data);
+        }
+      };
+
+      mediaRecorder.start(100);
+      recordStartTime = Date.now();
+
+      if (audioRecordBar) {
+        audioRecordBar.classList.remove('d-none');
+        audioRecordBar.classList.add('d-flex');
+      }
+
+      if (recordTimer) recordTimer.textContent = '0:00';
+      clearInterval(recordTimerInterval);
+      recordTimerInterval = setInterval(() => {
+        const elapsedSecs = Math.floor((Date.now() - recordStartTime) / 1000);
+        const mins = Math.floor(elapsedSecs / 60);
+        const secs = (elapsedSecs % 60).toString().padStart(2, '0');
+        if (recordTimer) recordTimer.textContent = `${mins}:${secs}`;
+      }, 1000);
+    } catch (err) {
+      console.error('Microphone access denied:', err);
+      showToast('Microphone permission denied or not available');
+    }
+  }
+
+  function stopAudioTracks() {
+    if (audioStream) {
+      audioStream.getTracks().forEach((track) => track.stop());
+      audioStream = null;
+    }
+  }
+
+  function cancelAudioRecording() {
+    clearInterval(recordTimerInterval);
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+    stopAudioTracks();
+    audioChunks = [];
+    if (audioRecordBar) {
+      audioRecordBar.classList.add('d-none');
+      audioRecordBar.classList.remove('d-flex');
+    }
+  }
+
+  async function finishAndSendAudioRecording() {
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+
+    clearInterval(recordTimerInterval);
+    mediaRecorder.onstop = async () => {
+      stopAudioTracks();
+      if (audioRecordBar) {
+        audioRecordBar.classList.add('d-none');
+        audioRecordBar.classList.remove('d-flex');
+      }
+
+      if (audioChunks.length === 0) return;
+      const mimeType = mediaRecorder.mimeType || 'audio/webm';
+      const audioBlob = new Blob(audioChunks, { type: mimeType });
+      const ext = mimeType.includes('ogg') ? 'ogg' : 'webm';
+      const audioFile = new File([audioBlob], `voice-note-${Date.now()}.${ext}`, { type: mimeType });
+
+      // Upload audio file
+      showToast('Sending voice note...');
+      const formData = new FormData();
+      formData.append('attachments', audioFile);
+      formData.append('file', audioFile);
+
+      try {
+        const uploadRes = await fetch('/api/messages/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        const uploadData = await uploadRes.json();
+        if (!uploadData.success || !uploadData.data) {
+          showToast('Failed to upload voice note');
+          return;
+        }
+
+        const attachData = uploadData.data;
+        // Optimistic UI for Audio Note
+        const tempId = 'temp_' + Date.now();
+        const optimisticMsg = {
+          _id: tempId,
+          conversationId: activeConversation._id,
+          senderId: currentUser,
+          content: '',
+          attachments: [attachData],
+          createdAt: new Date().toISOString(),
+          isPending: true,
+        };
+
+        const emptyPlaceholder = messagesStream?.querySelector('.text-muted.small.py-5');
+        if (emptyPlaceholder) messagesStream.innerHTML = '';
+
+        appendMessageToView(optimisticMsg);
+        scrollToBottom();
+        updateSidebarSnippet(activeConversation._id, '🎤 Voice note');
+
+        // Post message to server
+        const sendRes = await fetch('/api/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            conversationId: activeConversation._id,
+            content: '',
+            attachments: attachData,
+          }),
+        });
+
+        const sendData = await sendRes.json();
+        if (sendData.success && sendData.data) {
+          const tempRow = document.querySelector(`.message-row[data-id="${tempId}"]`);
+          if (tempRow) {
+            tempRow.dataset.id = sendData.data._id;
+            const oldTick = tempRow.querySelector(`#tick-${tempId}`);
+            if (oldTick) {
+              oldTick.id = `tick-${sendData.data._id}`;
+              oldTick.outerHTML = getTickHtml(sendData.data, true);
+            }
+          }
+          if (socket && socket.connected) {
+            socket.emit('send_message', { conversationId: activeConversation._id, message: sendData.data });
+          }
+        }
+      } catch (err) {
+        console.error('Failed to send voice note:', err);
+        showToast('Error sending voice note');
+      }
+    };
+
+    mediaRecorder.stop();
+  }
+
+  if (micBtn) micBtn.addEventListener('click', startAudioRecording);
+  if (cancelRecordBtn) cancelRecordBtn.addEventListener('click', cancelAudioRecording);
+  if (sendRecordBtn) sendRecordBtn.addEventListener('click', finishAndSendAudioRecording);
+
+  // ==========================================================================
+  // Contact Info & Shared Media Drawer
+  // ==========================================================================
+  const contactInfoModalEl = document.getElementById('contactInfoModal');
+  const contactInfoAvatar = document.getElementById('contactInfoAvatar');
+  const contactInfoName = document.getElementById('contactInfoName');
+  const contactInfoEmail = document.getElementById('contactInfoEmail');
+  const contactInfoStatus = document.getElementById('contactInfoStatus');
+  const contactInfoStatusDot = document.getElementById('contactInfoStatusDot');
+  const contactInfoBio = document.getElementById('contactInfoBio');
+  const sharedMediaGrid = document.getElementById('sharedMediaGrid');
+  const sharedMediaCount = document.getElementById('sharedMediaCount');
+  const contactCopyUsernameBtn = document.getElementById('contactCopyUsernameBtn');
+  const contactClearChatBtn = document.getElementById('contactClearChatBtn');
+
+  function openContactInfoModal() {
+    if (!activeConversation) return;
+    const isGrp = isGroupConv(activeConversation);
+    const otherUser = getOtherParticipant(activeConversation);
+
+    if (isGrp) {
+      if (contactInfoAvatar) contactInfoAvatar.textContent = (activeConversation.groupName || 'GH').substring(0, 2).toUpperCase();
+      if (contactInfoName) contactInfoName.textContent = activeConversation.groupName || 'Group Hub';
+      if (contactInfoEmail) contactInfoEmail.textContent = `${activeConversation.participants?.length || 0} participants`;
+      if (contactInfoStatus) contactInfoStatus.textContent = 'Group Hub';
+      if (contactInfoStatusDot) contactInfoStatusDot.className = 'status-dot connected position-absolute bottom-0 end-0 p-2 border border-2 border-dark';
+      if (contactInfoBio) contactInfoBio.textContent = activeConversation.groupDescription || 'Collaboration group hub on ChatIn.';
+    } else {
+      const username = otherUser?.username || 'Contact';
+      const email = otherUser?.email || '';
+      const isOnline = !!otherUser?.isOnline;
+      if (contactInfoAvatar) contactInfoAvatar.textContent = username.substring(0, 2).toUpperCase();
+      if (contactInfoName) contactInfoName.textContent = username;
+      if (contactInfoEmail) contactInfoEmail.textContent = email;
+      if (contactInfoStatus) contactInfoStatus.textContent = isOnline ? 'Active Now' : 'Offline';
+      if (contactInfoStatusDot) {
+        contactInfoStatusDot.className = `status-dot ${isOnline ? 'connected' : 'offline'} position-absolute bottom-0 end-0 p-2 border border-2 border-dark`;
+        contactInfoStatusDot.style.background = isOnline ? '#22c55e' : '#6b7280';
+      }
+      if (contactInfoBio) contactInfoBio.textContent = otherUser?.bio || 'Hey there! I am using ChatIn.';
+    }
+
+    // Populate Shared Media from loaded DOM messages
+    if (sharedMediaGrid) {
+      sharedMediaGrid.innerHTML = '';
+      const imgs = Array.from(document.querySelectorAll('#messagesStream img.msg-img-attachment'));
+      if (imgs.length > 0) {
+        if (sharedMediaCount) sharedMediaCount.textContent = `${imgs.length} photo${imgs.length > 1 ? 's' : ''}`;
+        imgs.forEach((img) => {
+          const thumb = document.createElement('img');
+          thumb.src = img.src;
+          thumb.className = 'shared-media-thumb';
+          thumb.alt = 'Shared media';
+          thumb.onclick = () => window.open(img.src, '_blank');
+          sharedMediaGrid.appendChild(thumb);
+        });
+      } else {
+        if (sharedMediaCount) sharedMediaCount.textContent = '0 files';
+        sharedMediaGrid.innerHTML = '<div class="text-muted extra-small py-2 text-center w-100">No photos or files shared yet.</div>';
+      }
+    }
+
+    const modal = getModal(contactInfoModalEl);
+    if (modal) modal.show();
+  }
+
+  if (chatInfoBtn) chatInfoBtn.addEventListener('click', openContactInfoModal);
+
+  if (contactCopyUsernameBtn) {
+    contactCopyUsernameBtn.addEventListener('click', () => {
+      if (!activeConversation) return;
+      const otherUser = getOtherParticipant(activeConversation);
+      const name = isGroupConv(activeConversation) ? activeConversation.groupName : (otherUser?.username || '');
+      if (name) {
+        navigator.clipboard.writeText(name).then(() => {
+          showToast(`Copied ${name} to clipboard`);
+        }).catch(() => {
+          showToast(`Copied ${name}`);
+        });
+      }
+    });
+  }
+
+  if (contactClearChatBtn) {
+    contactClearChatBtn.addEventListener('click', async () => {
+      if (!activeConversation) return;
+      if (!confirm('Clear all messages in this conversation for everyone? This cannot be undone.')) return;
+
+      try {
+        const res = await fetch(`/api/messages/${activeConversation._id}/clear`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          if (messagesStream) {
+            messagesStream.innerHTML = `
+              <div class="text-center text-muted small py-5">
+                <div class="fw-semibold mb-1">Chat history cleared</div>
+                <div class="extra-small">Send a message below to restart the conversation.</div>
+              </div>
+            `;
+          }
+          localStorage.removeItem(`chatin_cached_messages_${activeConversation._id}`);
+          const modal = getModal(contactInfoModalEl);
+          if (modal) modal.hide();
+          showToast('Chat history cleared');
+          if (socket && socket.connected) {
+            socket.emit('conversation_cleared', { conversationId: activeConversation._id });
+          }
+        } else {
+          alert(data.message || 'Failed to clear chat.');
+        }
+      } catch (err) {
+        console.error('Failed to clear chat:', err);
+        alert('Network error while clearing chat.');
+      }
+    });
+  }
+
   function appendMessageToView(msg) {
     if (!messagesStream) return;
 
@@ -528,7 +1204,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (msg._id) row.dataset.id = msg._id;
     if (msg.createdAt) row.dataset.time = msg.createdAt;
 
-    // Handle attachments
+    // Handle attachments (images, audio notes, docs)
     let attachmentHtml = '';
     const rawAttachments = msg.attachments ? (Array.isArray(msg.attachments) ? msg.attachments.flat() : [msg.attachments]) : [];
     if (rawAttachments.length > 0) {
@@ -537,10 +1213,24 @@ document.addEventListener('DOMContentLoaded', () => {
       const fileName = att.originalName || att.fileName || 'Attachment';
       const mimeType = att.mimeType || att.fileType || '';
       const isImg = mimeType.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fileUrl);
+      const isAudio = mimeType.startsWith('audio/') || /\.(webm|mp3|wav|ogg|m4a)$/i.test(fileUrl);
 
       if (fileUrl) {
         if (isImg) {
           attachmentHtml = `<img src="${fileUrl}" class="msg-img-attachment" alt="${escapeHtml(fileName)}" onclick="window.open('${fileUrl}', '_blank')">`;
+        } else if (isAudio) {
+          attachmentHtml = `
+            <div class="audio-msg-player my-1 p-2 rounded-3 bg-black bg-opacity-20 d-flex align-items-center gap-2">
+              <audio src="${fileUrl}" preload="metadata" id="audio-${msg._id}"></audio>
+              <button type="button" class="audio-play-btn" onclick="window.toggleAudioPlay('${msg._id}')" id="audioBtn-${msg._id}">
+                <i class="bi bi-play-fill fs-5"></i>
+              </button>
+              <div class="flex-grow-1 overflow-hidden min-w-0">
+                <div class="extra-small fw-semibold text-truncate"><i class="bi bi-mic-fill me-1"></i>Voice Note</div>
+                <div class="extra-small opacity-75 font-monospace" id="audioTime-${msg._id}">0:00</div>
+              </div>
+            </div>
+          `;
         } else {
           attachmentHtml = `
             <a href="${fileUrl}" target="_blank" download="${escapeHtml(fileName)}" class="msg-file-attachment d-flex align-items-center gap-2 p-2 rounded-2 text-decoration-none">
@@ -561,15 +1251,77 @@ document.addEventListener('DOMContentLoaded', () => {
     const isDeleted = Boolean(msg.deletedAt || msg.isDeleted);
     const contentText = isDeleted ? 'This message was deleted' : (msg.content || '');
 
-    row.innerHTML = `
-      <div class="message-bubble ${isDeleted ? 'opacity-75' : ''}">
-        ${senderName ? `<div class="msg-sender-name">${escapeHtml(senderName)}</div>` : ''}
-        ${!isDeleted ? attachmentHtml : ''}
-        <div class="msg-text ${isDeleted ? 'fst-italic' : ''}">${escapeHtml(contentText)}</div>
-        <div class="msg-meta">
-          <span>${time}</span>
-          ${tickHtml}
+    // Quoted Reply Preview
+    let replyQuoteHtml = '';
+    if (msg.replyTo && typeof msg.replyTo === 'object' && !isDeleted) {
+      const repSender = msg.replyTo.senderId?.username || 'User';
+      const repContent = msg.replyTo.content || (msg.replyTo.attachments?.length ? 'Attachment' : 'Message');
+      const repId = msg.replyTo._id ? msg.replyTo._id.toString() : '';
+      replyQuoteHtml = `
+        <div class="msg-reply-quote" onclick="window.scrollToMessage('${repId}')">
+          <div class="quote-sender"><i class="bi bi-reply-fill me-1"></i>${escapeHtml(repSender)}</div>
+          <div class="quote-text">${escapeHtml(repContent)}</div>
         </div>
+      `;
+    }
+
+    // Reactions Pill Row
+    let reactionsHtml = '';
+    if (Array.isArray(msg.reactions) && msg.reactions.length > 0 && !isDeleted) {
+      const counts = {};
+      const myReactions = new Set();
+      msg.reactions.forEach((r) => {
+        counts[r.emoji] = (counts[r.emoji] || 0) + 1;
+        const rUserId = (r.user?._id || r.user || '').toString();
+        if (rUserId === currentUserIdStr) myReactions.add(r.emoji);
+      });
+      const pills = Object.entries(counts).map(([emoji, count]) => {
+        const hasReacted = myReactions.has(emoji);
+        return `<span class="msg-reaction-pill ${hasReacted ? 'reacted' : ''}" onclick="window.toggleReaction('${msg._id}', '${emoji}')">${emoji} <span class="extra-small fw-bold">${count}</span></span>`;
+      }).join('');
+      reactionsHtml = `<div class="msg-reactions-row" id="reactions-${msg._id}">${pills}</div>`;
+    }
+
+    // Action Bar (Quick Reactions, Reply, Copy, Delete)
+    let actionsHtml = '';
+    if (!isDeleted && msg._id && !msg._id.toString().startsWith('temp_')) {
+      const escapedCleanText = escapeHtml((contentText || '').replace(/['"]/g, ''));
+      const escapedSender = escapeHtml(senderUsername || (isMine ? 'You' : 'User'));
+      actionsHtml = `
+        <div class="msg-actions-bar">
+          <button type="button" class="reaction-quick-btn" onclick="window.toggleReaction('${msg._id}', '👍')" title="Thumbs up">👍</button>
+          <button type="button" class="reaction-quick-btn" onclick="window.toggleReaction('${msg._id}', '❤️')" title="Heart">❤️</button>
+          <button type="button" class="reaction-quick-btn" onclick="window.toggleReaction('${msg._id}', '😂')" title="Laugh">😂</button>
+          <button type="button" class="reaction-quick-btn" onclick="window.toggleReaction('${msg._id}', '🔥')" title="Fire">🔥</button>
+          <button type="button" class="action-icon-btn" onclick="window.startReplyToMessage('${msg._id}', '${escapedSender}', '${escapedCleanText}')" title="Reply">
+            <i class="bi bi-reply-fill"></i>
+          </button>
+          <button type="button" class="action-icon-btn" onclick="window.copyMessageText('${escapedCleanText}')" title="Copy text">
+            <i class="bi bi-clipboard"></i>
+          </button>
+          ${isMine ? `
+            <button type="button" class="action-icon-btn text-danger" onclick="window.deleteMessageById('${msg._id}')" title="Delete message">
+              <i class="bi bi-trash3"></i>
+            </button>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    row.innerHTML = `
+      <div class="message-bubble-wrapper">
+        <div class="message-bubble ${isDeleted ? 'opacity-75' : ''}">
+          ${replyQuoteHtml}
+          ${senderName ? `<div class="msg-sender-name">${escapeHtml(senderName)}</div>` : ''}
+          ${!isDeleted ? attachmentHtml : ''}
+          <div class="msg-text ${isDeleted ? 'fst-italic' : ''}">${escapeHtml(contentText)}</div>
+          ${reactionsHtml}
+          <div class="msg-meta">
+            <span>${time}</span>
+            ${tickHtml}
+          </div>
+        </div>
+        ${actionsHtml}
       </div>
     `;
 
@@ -609,9 +1361,12 @@ document.addEventListener('DOMContentLoaded', () => {
       scrollToBottom();
       updateSidebarSnippet(activeConversation._id, text || 'Sent an attachment');
 
-      // Clear input immediately so user can continue typing without delay
+      // Clear input and reply bar immediately so user can continue typing without delay
       if (messageInput) messageInput.value = '';
       clearPendingAttachment();
+
+      const replyToPayload = pendingReplyTo ? pendingReplyTo.id : null;
+      cancelReply();
 
       if (socket && socket.connected) {
         socket.emit('stop_typing', { conversationId: activeConversation._id });
@@ -622,6 +1377,7 @@ document.addEventListener('DOMContentLoaded', () => {
         conversationId: activeConversation._id,
         content: text,
         attachments: currentAttach,
+        replyTo: replyToPayload,
       };
 
       try {
@@ -682,7 +1438,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       appendMessageToView(msg);
-      scrollToBottom();
+      const isNearBottom = messagesViewport
+        ? messagesViewport.scrollHeight - messagesViewport.scrollTop - messagesViewport.clientHeight < 160
+        : true;
+      if (isNearBottom) {
+        scrollToBottom();
+      } else {
+        incrementUnreadScrollBadge();
+      }
       fetch(`/api/messages/${convId}/read`, { method: 'POST' }).catch(() => {});
       if (socket && socket.connected) {
         socket.emit('message_read', { conversationId: convId, messageId: msg._id });
@@ -1636,7 +2399,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // WhatsApp 2-way ACK: If new incoming messages arrived, confirm delivery & read status
         if (hasNew) {
-          scrollToBottom();
+          const isNearBottom = messagesViewport
+            ? messagesViewport.scrollHeight - messagesViewport.scrollTop - messagesViewport.clientHeight < 160
+            : true;
+          if (isNearBottom) {
+            scrollToBottom();
+          } else {
+            incrementUnreadScrollBadge();
+          }
           const latest = data.data[data.data.length - 1];
           updateSidebarSnippet(convId, latest.content || 'Sent an attachment');
         }

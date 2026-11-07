@@ -104,15 +104,38 @@
         </div>
 
         <div class="d-flex align-items-center gap-1 flex-shrink-0">
-          <button class="btn btn-icon" id="chatInfoBtn" title="Chat Details">
+          <button class="btn btn-icon" id="chatSearchToggleBtn" title="Search in conversation">
+            <i class="bi bi-search"></i>
+          </button>
+          <button class="btn btn-icon" id="chatInfoBtn" title="Contact Details & Shared Media">
             <i class="bi bi-info-circle"></i>
           </button>
         </div>
       </header>
 
+      <!-- In-Chat Search Bar -->
+      <div class="in-chat-search-bar px-3 py-2 border-bottom d-none align-items-center justify-content-between bg-body-tertiary" id="inChatSearchBar">
+        <div class="d-flex align-items-center gap-2 flex-grow-1 me-2 overflow-hidden min-w-0">
+          <i class="bi bi-search text-muted small flex-shrink-0"></i>
+          <input type="text" id="inChatSearchInput" class="form-control form-control-sm border-0 bg-transparent p-0" placeholder="Find in messages..." autocomplete="off">
+        </div>
+        <div class="d-flex align-items-center gap-1 flex-shrink-0">
+          <span class="extra-small text-muted me-1" id="searchMatchCount">0 matches</span>
+          <button type="button" class="btn btn-sm btn-icon" id="searchPrevBtn" title="Previous match"><i class="bi bi-chevron-up"></i></button>
+          <button type="button" class="btn btn-sm btn-icon" id="searchNextBtn" title="Next match"><i class="bi bi-chevron-down"></i></button>
+          <button type="button" class="btn-close btn-close-white small ms-1" id="closeSearchBtn" aria-label="Close search"></button>
+        </div>
+      </div>
+
       <!-- Message History List -->
-      <div class="messages-viewport flex-grow-1 p-3 overflow-y-auto" id="messagesViewport">
+      <div class="messages-viewport flex-grow-1 p-3 overflow-y-auto position-relative" id="messagesViewport">
         <div class="messages-stream d-flex flex-column gap-2" id="messagesStream"></div>
+
+        <!-- Floating Scroll-to-Bottom Button -->
+        <button class="btn btn-floating-bottom d-none rounded-circle shadow-lg" id="scrollToBottomBtn" title="Scroll to bottom">
+          <i class="bi bi-chevron-down fs-5"></i>
+          <span class="unread-scroll-badge d-none" id="unreadScrollBadge">0</span>
+        </button>
       </div>
 
       <!-- Typing Indicator Row -->
@@ -122,6 +145,30 @@
 
       <!-- Message Input Bar -->
       <footer class="message-composer-bar p-3 border-top">
+        <!-- Reply Bar -->
+        <div class="reply-preview-bar px-3 py-2 mb-2 d-none align-items-center justify-content-between rounded-3 border-start border-4 border-primary bg-body-tertiary" id="replyBar">
+          <div class="d-flex flex-column overflow-hidden me-2 min-w-0">
+            <div class="extra-small fw-bold text-primary d-flex align-items-center gap-1">
+              <i class="bi bi-reply-fill"></i> <span id="replySenderName">Replying</span>
+            </div>
+            <div class="reply-text-preview extra-small text-muted text-truncate" id="replyTextPreview">Message text</div>
+          </div>
+          <button type="button" class="btn-close btn-close-white small flex-shrink-0" id="cancelReplyBtn" aria-label="Cancel reply"></button>
+        </div>
+
+        <!-- Audio Recording Bar -->
+        <div class="audio-record-bar px-3 py-2 mb-2 d-none align-items-center justify-content-between rounded-3 bg-danger bg-opacity-10 border border-danger border-opacity-25" id="audioRecordBar">
+          <div class="d-flex align-items-center gap-2">
+            <span class="record-pulse-dot"></span>
+            <span class="small fw-semibold text-danger">Recording Audio Note...</span>
+            <span class="extra-small font-monospace text-danger fw-bold ms-1" id="recordTimer">0:00</span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" id="cancelRecordBtn">Cancel</button>
+            <button type="button" class="btn btn-sm btn-danger rounded-pill px-3 fw-bold" id="sendRecordBtn"><i class="bi bi-send-fill me-1"></i> Send</button>
+          </div>
+        </div>
+
         <!-- Emoji Popover -->
         <div class="emoji-popover d-none shadow-lg rounded-3" id="emojiPopover">
           <div class="emoji-tabs p-2 border-bottom d-flex gap-2">
@@ -151,6 +198,10 @@
             <i class="bi bi-paperclip"></i>
             <input type="file" id="fileInput" class="d-none">
           </label>
+
+          <button type="button" class="btn btn-icon text-muted" id="micBtn" title="Record Voice Note">
+            <i class="bi bi-mic"></i>
+          </button>
 
           <div class="input-wrap flex-grow-1">
             <input type="text" id="messageInput" class="form-control composer-input" placeholder="Type a message... (Press Enter to send)" autocomplete="off">
@@ -224,6 +275,55 @@
           </div>
           <button type="submit" class="btn chatin-btn-gradient w-100 py-2 rounded-3 fw-semibold">Create Group</button>
         </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CONTACT INFO & SHARED MEDIA (P2P CHAT) -->
+<div class="modal fade" id="contactInfoModal" tabindex="-1" aria-labelledby="contactInfoModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content chatin-modal rounded-4 shadow-lg overflow-hidden border">
+      <div class="modal-header border-bottom px-4 py-3">
+        <h5 class="modal-title fw-bold mb-0" id="contactInfoModalLabel">Contact Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4 text-center">
+        <!-- Contact Avatar & Status -->
+        <div class="contact-info-avatar-holder mx-auto mb-3 position-relative" style="width:78px;height:78px;">
+          <div class="user-avatar-circle w-100 h-100 fs-3 shadow-md" id="contactInfoAvatar">CI</div>
+          <span class="status-dot connected position-absolute bottom-0 end-0 p-2 border border-2 border-dark" id="contactInfoStatusDot"></span>
+        </div>
+        <h5 class="fw-bold mb-1 text-truncate" id="contactInfoName">Contact Name</h5>
+        <div class="text-muted extra-small mb-2 text-truncate" id="contactInfoEmail">email@example.com</div>
+        <div class="badge bg-body-tertiary text-secondary px-3 py-1 mb-3 rounded-pill extra-small" id="contactInfoStatus">Active Now</div>
+
+        <!-- Contact Bio -->
+        <div class="p-3 rounded-3 bg-body-tertiary text-start mb-3 border">
+          <div class="extra-small text-muted fw-bold text-uppercase mb-1">About / Status</div>
+          <div class="small" id="contactInfoBio">Hey there! I am using ChatIn.</div>
+        </div>
+
+        <!-- Shared Media Tab -->
+        <div class="text-start mb-3">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="extra-small text-muted fw-bold text-uppercase">Shared Photos & Media</span>
+            <span class="extra-small text-muted" id="sharedMediaCount">0 files</span>
+          </div>
+          <div class="shared-media-grid d-flex gap-2 overflow-x-auto py-1" id="sharedMediaGrid" style="min-height:50px;">
+            <div class="text-muted extra-small py-2 text-center w-100">No photos or files shared yet.</div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="d-flex flex-column gap-2 pt-2 border-top">
+          <button type="button" class="btn btn-outline-secondary rounded-3 py-2 d-flex align-items-center justify-content-center gap-2" id="contactCopyUsernameBtn">
+            <i class="bi bi-clipboard"></i> Copy Username
+          </button>
+          <button type="button" class="btn btn-outline-danger rounded-3 py-2 d-flex align-items-center justify-content-center gap-2" id="contactClearChatBtn">
+            <i class="bi bi-trash3"></i> Clear Chat History
+          </button>
+        </div>
       </div>
     </div>
   </div>

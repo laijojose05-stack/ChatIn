@@ -8,6 +8,8 @@ const {
   markAsRead,
   markAsDelivered,
   uploadAttachments,
+  toggleReaction,
+  clearConversationHistory,
 } = require('../controllers/messageController');
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
@@ -17,6 +19,8 @@ router.get('/:conversationId', protect, getMessages);
 router.post('/', protect, messageLimiter, sanitizeMessage, sendMessage);
 router.put('/:id', protect, sanitizeMessage, editMessage);
 router.delete('/:id', protect, deleteMessage);
+router.post('/:id/react', protect, toggleReaction);
+router.post('/:conversationId/clear', protect, clearConversationHistory);
 router.post('/:conversationId/read', protect, markAsRead);
 router.post('/:conversationId/delivered', protect, markAsDelivered);
 router.post('/upload', protect, upload.any(), uploadAttachments);
