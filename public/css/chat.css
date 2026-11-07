@@ -5,6 +5,7 @@
 .chat-app-container {
   display: flex;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   overflow: hidden;
   background-color: var(--bg-app);
@@ -702,34 +703,100 @@
 
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
+  .chat-app-container {
+    height: 100dvh;
+    height: -webkit-fill-available;
+  }
+
   .sidebar-wrapper {
-    width: 100%;
-    min-width: 100%;
+    width: 100% !important;
+    min-width: 100% !important;
   }
 
   .chat-app-container.chat-active .sidebar-wrapper {
-    display: none;
+    display: none !important;
   }
 
   .chat-app-container:not(.chat-active) .chat-main-area {
-    display: none;
+    display: none !important;
+  }
+
+  .chat-header {
+    height: 56px;
+    padding: 0.5rem 0.75rem !important;
+  }
+
+  #mobileBackBtn {
+    min-width: 38px;
+    min-height: 38px;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .chat-composer-section {
+    padding: 0.5rem 0.75rem !important;
+  }
+
+  .composer-input,
+  .form-control {
+    font-size: 16px !important; /* Prevents auto-zoom in iOS Safari */
+  }
+
+  .chat-message-bubble {
+    max-width: 86% !important;
+  }
+
+  /* Settings Modal on Mobile */
+  .settings-modal-dialog {
+    max-width: calc(100vw - 1rem) !important;
+    margin: 0.5rem auto !important;
   }
 
   .settings-modal-body {
-    flex-direction: column;
+    flex-direction: column !important;
+    min-height: auto !important;
+    max-height: calc(100dvh - 120px) !important;
+    overflow-y: auto !important;
   }
 
   .settings-sidebar-nav {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid var(--border-color);
-    padding: 0.75rem;
-    flex-direction: row;
-    overflow-x: auto;
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    padding: 0.5rem 0.75rem !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    gap: 0.35rem !important;
+    -webkit-overflow-scrolling: touch;
+    flex-shrink: 0;
+  }
+
+  .settings-sidebar-nav .tracking-wider,
+  .settings-sidebar-nav .mt-auto {
+    display: none !important;
   }
 
   .settings-nav-item {
-    white-space: nowrap;
-    width: auto;
+    white-space: nowrap !important;
+    width: auto !important;
+    padding: 0.45rem 0.75rem !important;
+    font-size: 0.85rem !important;
+  }
+
+  .settings-content-pane {
+    padding: 1rem 0.75rem !important;
+  }
+
+  /* Emoji Picker & Modals */
+  .emoji-popover {
+    position: fixed !important;
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 75px !important;
+    width: auto !important;
+    max-width: 100vw !important;
+    z-index: 1050 !important;
   }
 }

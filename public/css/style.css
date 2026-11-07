@@ -638,3 +638,22 @@ small.text-muted {
 .modal-header, .modal-footer {
   border-color: var(--border-subtle) !important;
 }
+
+/* ==========================================================================
+   Mobile Responsiveness for Auth & Global Modals
+   ========================================================================== */
+@media (max-width: 576px) {
+  .auth-card {
+    padding: 1.5rem 1.15rem !important;
+    border-radius: var(--radius-lg) !important;
+  }
+
+  .form-control {
+    font-size: 16px !important; /* Prevents auto-zoom on iOS */
+    min-height: 46px;
+  }
+
+  .auth-heading {
+    font-size: 1.6rem;
+  }
+}

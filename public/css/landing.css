@@ -555,3 +555,36 @@
 .chatin-footer {
   background: var(--bg-sidebar);
 }
+
+/* ==========================================================================
+   Landing Page Mobile Responsiveness
+   ========================================================================== */
+@media (max-width: 768px) {
+  .chatin-hero-headline {
+    font-size: 2.15rem !important;
+  }
+
+  .chatin-hero-subhead {
+    font-size: 1.05rem !important;
+  }
+
+  .chatin-cta-banner {
+    padding: 2.5rem 1.25rem !important;
+    border-radius: 18px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .chatin-hero-headline {
+    font-size: 1.85rem !important;
+  }
+
+  .chatin-hero-section .d-flex.gap-3 {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .chatin-hero-section .btn {
+    width: 100%;
+  }
+}
