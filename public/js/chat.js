@@ -368,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Join socket room
-    if (socket && socket.connected) {
+    if (socket) {
       socket.emit('join_conversation', conv._id);
     }
 
@@ -387,6 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
       if (data.success) {
         renderMessages(data.data || []);
+        startActiveSync();
         // Mark as read in API and socket
         fetch(`/api/messages/${conv._id}/read`, { method: 'POST' }).catch(() => {});
         if (socket && socket.connected) {
@@ -442,6 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const row = document.createElement('div');
     row.className = `message-row ${isMine ? 'sent' : 'received'}`;
     if (msg._id) row.dataset.id = msg._id;
+    if (msg.createdAt) row.dataset.time = msg.createdAt;
 
     // Handle attachments
     let attachmentHtml = '';
@@ -546,6 +548,12 @@ document.addEventListener('DOMContentLoaded', () => {
       : (msg.conversationId ? msg.conversationId.toString() : '');
 
     if (activeConversation && activeConversation._id.toString() === convId) {
+      // Clear placeholder empty state if present
+      const emptyStatePlaceholder = messagesStream?.querySelector('.text-muted.small.py-5');
+      if (emptyStatePlaceholder) {
+        messagesStream.innerHTML = '';
+      }
+
       appendMessageToView(msg);
       scrollToBottom();
       fetch(`/api/messages/${convId}/read`, { method: 'POST' }).catch(() => {});
@@ -611,6 +619,7 @@ document.addEventListener('DOMContentLoaded', () => {
     mobileBackBtn.addEventListener('click', () => {
       if (chatApp) chatApp.classList.remove('chat-active');
       activeConversation = null;
+      stopActiveSync();
     });
   }
 
@@ -1346,7 +1355,134 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/'/g, '&#039;');
   }
 
-  // Start Real-Time Socket and Load Conversations
+  // ==========================================================================
+  // Smart Real-Time Synchronization & Polling Fallback
+  // Ensures seamless message delivery across WebSockets, serverless hosts, and mobile sleep states
+  // ==========================================================================
+  let activeSyncInterval = null;
+  let isSyncingActive = false;
+  let conversationsSyncInterval = null;
+  let isSyncingConversations = false;
+
+  function startActiveSync() {
+    stopActiveSync();
+    activeSyncInterval = setInterval(syncActiveMessages, 2500);
+  }
+
+  function stopActiveSync() {
+    if (activeSyncInterval) {
+      clearInterval(activeSyncInterval);
+      activeSyncInterval = null;
+    }
+  }
+
+  async function syncActiveMessages() {
+    if (!activeConversation || isSyncingActive || document.hidden) return;
+    isSyncingActive = true;
+    try {
+      const convId = activeConversation._id;
+      const allRows = messagesStream ? messagesStream.querySelectorAll('.message-row') : [];
+      let latestTime = null;
+      if (allRows.length > 0) {
+        const lastRow = allRows[allRows.length - 1];
+        latestTime = lastRow.dataset.time || null;
+      }
+
+      const url = latestTime
+        ? `/api/messages/${convId}?after=${encodeURIComponent(latestTime)}`
+        : `/api/messages/${convId}?limit=25`;
+
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+        // Clear placeholder empty state if new messages arrived
+        const emptyStatePlaceholder = messagesStream?.querySelector('.text-muted.small.py-5');
+        if (emptyStatePlaceholder) {
+          messagesStream.innerHTML = '';
+        }
+
+        let hasNew = false;
+        data.data.forEach((msg) => {
+          if (!document.querySelector(`.message-row[data-id="${msg._id}"]`)) {
+            appendMessageToView(msg);
+            hasNew = true;
+            const senderId = (msg.senderId?._id || msg.senderId || '').toString();
+            const currentId = (currentUser._id || '').toString();
+            if (senderId && senderId !== currentId) {
+              playNotificationChime();
+            }
+          }
+        });
+
+        if (hasNew) {
+          scrollToBottom();
+          fetch(`/api/messages/${convId}/read`, { method: 'POST' }).catch(() => {});
+          const latest = data.data[data.data.length - 1];
+          updateSidebarSnippet(convId, latest.content || 'Sent an attachment');
+        }
+      }
+    } catch (e) {
+      // background polling - ignore transient network drops
+    } finally {
+      isSyncingActive = false;
+    }
+  }
+
+  function startConversationsSync() {
+    if (conversationsSyncInterval) clearInterval(conversationsSyncInterval);
+    conversationsSyncInterval = setInterval(async () => {
+      if (isSyncingConversations || document.hidden) return;
+      isSyncingConversations = true;
+      try {
+        const res = await fetch('/api/conversations');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          const newConvs = data.data;
+          let changed = newConvs.length !== conversations.length;
+          if (!changed) {
+            for (let i = 0; i < newConvs.length; i++) {
+              const c = newConvs[i];
+              const old = conversations.find((x) => x._id === c._id);
+              if (!old || old.unreadCount !== c.unreadCount || old.lastMessage?._id !== c.lastMessage?._id) {
+                changed = true;
+                break;
+              }
+            }
+          }
+          if (changed) {
+            conversations = newConvs;
+            renderConversationsList();
+          }
+        }
+      } catch (e) {
+        // background sync
+      } finally {
+        isSyncingConversations = false;
+      }
+    }, 5000);
+  }
+
+  // Start Real-Time Socket, Load Conversations, and Start Sync Timers
   initSocket();
   loadConversations();
+  startConversationsSync();
+
+  // Instant re-sync when tab visibility is restored or window regains focus
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      if (activeConversation) {
+        syncActiveMessages();
+      }
+      loadConversations();
+    }
+  });
+
+  window.addEventListener('focus', () => {
+    if (activeConversation) {
+      syncActiveMessages();
+    }
+    loadConversations();
+  });
 });

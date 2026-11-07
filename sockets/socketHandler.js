@@ -144,12 +144,17 @@ const registerSocketHandlers = (io) => {
         });
         io.to(`conv:${conversationId}`).emit('new_message', message);
 
-        // Also notify participants who might be outside the room
+        // Also notify participants who might be outside the room or joining
         const conversation = await Conversation.findById(conversationId).select('participants');
         if (conversation) {
           conversation.participants.forEach((pId) => {
             const pIdStr = pId.toString();
             if (pIdStr !== userId) {
+              io.to(`user:${pIdStr}`).emit('receive_message', {
+                conversationId,
+                message,
+              });
+              io.to(`user:${pIdStr}`).emit('new_message', message);
               io.to(`user:${pIdStr}`).emit('new_message_notification', {
                 conversationId,
                 message,

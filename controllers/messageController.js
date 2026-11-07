@@ -8,7 +8,7 @@ const Notification = require('../models/Notification');
 const getMessages = async (req, res, next) => {
   try {
     const { conversationId } = req.params;
-    const { limit = 40, before } = req.query;
+    const { limit = 40, before, after } = req.query;
     const currentUserId = req.user._id;
 
     // Verify user is in conversation
@@ -27,12 +27,17 @@ const getMessages = async (req, res, next) => {
     const query = { conversationId };
     if (before) {
       query.createdAt = { $lt: new Date(before) };
+    } else if (after) {
+      query.createdAt = { $gt: new Date(after) };
     }
 
     const pageSize = Math.min(parseInt(limit, 10) || 40, 100);
 
+    // If querying 'after' for incremental updates, sort ascending so newest append in order
+    const sortOrder = after ? { createdAt: 1 } : { createdAt: -1 };
+
     const messages = await Message.find(query)
-      .sort({ createdAt: -1 })
+      .sort(sortOrder)
       .limit(pageSize)
       .populate('senderId', 'username email profilePicture')
       .populate({
@@ -40,13 +45,13 @@ const getMessages = async (req, res, next) => {
         populate: { path: 'senderId', select: 'username' },
       });
 
-    // We fetch in descending order for pagination, then reverse so client receives in chronological order
-    const ordered = messages.reverse();
+    // For standard history fetch, reverse so client receives in chronological order
+    const ordered = after ? messages : messages.reverse();
 
     // Check if there are older messages
     const oldestMessage = ordered.length > 0 ? ordered[0] : null;
     let hasMore = false;
-    if (oldestMessage) {
+    if (oldestMessage && !after) {
       const olderCount = await Message.countDocuments({
         conversationId,
         createdAt: { $lt: oldestMessage.createdAt },
@@ -155,6 +160,11 @@ const sendMessage = async (req, res, next) => {
       for (const pId of conversation.participants) {
         const pIdStr = pId.toString();
         if (pIdStr !== currentUserId.toString()) {
+          io.to(`user:${pIdStr}`).emit('receive_message', {
+            conversationId,
+            message: populated,
+          });
+          io.to(`user:${pIdStr}`).emit('new_message', populated);
           io.to(`user:${pIdStr}`).emit('new_message_notification', {
             conversationId,
             message: populated,
