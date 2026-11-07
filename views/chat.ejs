@@ -37,12 +37,8 @@
       <button class="filter-pill" data-filter="unread">Unread</button>
     </div>
 
-    <!-- Conversations List -->
+    <!-- Conversations List (WhatsApp style: always loaded without blank loading screen) -->
     <div class="conversations-list flex-grow-1 overflow-y-auto" id="conversationsContainer">
-      <div class="loading-state text-center py-5 text-muted" id="conversationsLoading">
-        <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
-        <div class="small">Loading conversations...</div>
-      </div>
       <div id="conversationsList"></div>
     </div>
 
@@ -706,6 +702,7 @@
     bio: user.bio || '',
     profilePicture: user.profilePicture || ''
   }) %>;
+  window.INITIAL_CONVERSATIONS = <%- JSON.stringify(typeof initialConversations !== 'undefined' ? initialConversations : []) %>;
 </script>
 <script src="/js/chat.js?v=<%= Date.now() %>"></script>
 

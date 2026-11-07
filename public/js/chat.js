@@ -8,10 +8,31 @@ document.addEventListener('DOMContentLoaded', () => {
   let pendingAttachment = null;
   let typingTimeout = null;
 
+  // WhatsApp style: Immediate instant initialization from preloaded server state or localStorage cache (0ms delay, no loading spinner!)
+  const preloaded = Array.isArray(window.INITIAL_CONVERSATIONS) && window.INITIAL_CONVERSATIONS.length > 0
+    ? window.INITIAL_CONVERSATIONS
+    : null;
+
+  if (preloaded) {
+    conversations = preloaded;
+    try {
+      localStorage.setItem('chatin_cached_conversations', JSON.stringify(conversations));
+    } catch (e) {}
+  } else {
+    try {
+      const cached = localStorage.getItem('chatin_cached_conversations');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          conversations = parsed;
+        }
+      }
+    } catch (e) {}
+  }
+
   // DOM Elements
   const statusDot = document.getElementById('socketStatusDot');
   const conversationsList = document.getElementById('conversationsList');
-  const conversationsLoading = document.getElementById('conversationsLoading');
   const emptyChatState = document.getElementById('emptyChatState');
   const activeChatWrapper = document.getElementById('activeChatWrapper');
   const messagesViewport = document.getElementById('messagesViewport');
@@ -26,6 +47,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const chatApp = document.getElementById('chatApp');
   const conversationSearchInput = document.getElementById('conversationSearchInput');
   const chatInfoBtn = document.getElementById('chatInfoBtn');
+
+  // WhatsApp style: Render conversations immediately upon page parse (0ms!)
+  if (Array.isArray(conversations) && conversations.length > 0) {
+    renderFilteredConversations();
+  }
 
   // Modals & Popovers
   const openNewChatBtn = document.getElementById('openNewChatBtn');
@@ -213,22 +239,30 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 2. Fetch and Render Conversations
+  // 2. Fetch and Render Conversations (WhatsApp style: silent background sync without loading flash)
   async function loadConversations() {
     try {
-      const res = await fetch('/api/conversations');
+      const res = await fetch(`/api/conversations?_t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
-      if (data.success) {
-        conversations = data.data || [];
+      if (data.success && Array.isArray(data.data)) {
+        conversations = data.data;
+        try {
+          localStorage.setItem('chatin_cached_conversations', JSON.stringify(conversations));
+        } catch (e) {}
         renderFilteredConversations();
-      } else {
+        if (activeConversation) {
+          document.querySelectorAll('.conv-item').forEach((el) => {
+            el.classList.toggle('active', el.dataset.id === activeConversation._id);
+          });
+        }
+      } else if (!conversations || conversations.length === 0) {
         renderEmptyConversations();
       }
     } catch (err) {
       console.error('Failed to load conversations:', err);
-      renderEmptyConversations();
-    } finally {
-      if (conversationsLoading) conversationsLoading.classList.add('d-none');
+      if (!conversations || conversations.length === 0) {
+        renderEmptyConversations();
+      }
     }
   }
 
@@ -393,14 +427,21 @@ document.addEventListener('DOMContentLoaded', () => {
       socket.emit('join_conversation', conv._id);
     }
 
-    // Fetch messages
-    if (messagesStream) {
-      messagesStream.innerHTML = `
-        <div class="text-center py-5 text-muted small">
-          <div class="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
-          <div>Loading conversation history...</div>
-        </div>
-      `;
+    // WhatsApp style instant message loading from local cache (0ms latency, zero screen wipe!)
+    let renderedFromCache = false;
+    try {
+      const cached = localStorage.getItem(`chatin_cached_messages_${conv._id}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          renderMessages(parsed);
+          renderedFromCache = true;
+        }
+      }
+    } catch (e) {}
+
+    if (!renderedFromCache && messagesStream) {
+      messagesStream.innerHTML = '';
     }
 
     try {
@@ -409,6 +450,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (data.success) {
         renderMessages(data.data || []);
         startActiveSync();
+        try {
+          localStorage.setItem(`chatin_cached_messages_${conv._id}`, JSON.stringify(data.data || []));
+        } catch (e) {}
         // WhatsApp ACK: Mark as read and delivered immediately upon viewing
         fetch(`/api/messages/${conv._id}/delivered?_t=${Date.now()}`, { method: 'POST', cache: 'no-store' }).catch(() => {});
         fetch(`/api/messages/${conv._id}/read?_t=${Date.now()}`, { method: 'POST', cache: 'no-store' }).catch(() => {});
@@ -418,7 +462,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     } catch (err) {
-      if (messagesStream) {
+      if (!renderedFromCache && messagesStream) {
         messagesStream.innerHTML = '<div class="text-center py-4 text-danger small">Failed to load messages</div>';
       }
     }
