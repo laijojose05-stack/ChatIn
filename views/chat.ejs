@@ -74,18 +74,28 @@
 
   <!-- 2. MAIN CHAT AREA -->
   <main class="chat-main-area" id="mainChatArea">
-    <!-- Placeholder / Empty State -->
-    <div class="empty-chat-state d-flex flex-column align-items-center justify-content-center h-100 text-center p-4" id="emptyChatState">
-      <div class="empty-icon-wrap mb-3">
-        <img src="/logo.svg" alt="ChatIn" width="64" height="64">
+    <!-- Placeholder / Empty State (WhatsApp Web Authentic Presentation) -->
+    <div class="empty-chat-state d-flex flex-column align-items-center justify-content-center h-100 text-center p-4 position-relative" id="emptyChatState">
+      <div class="whatsapp-empty-graphic mb-4">
+        <svg width="220" height="140" viewBox="0 0 220 140" fill="none" xmlns="http://www.w3.org/2000/svg" class="opacity-75">
+          <rect x="20" y="10" width="180" height="105" rx="8" stroke="currentColor" stroke-width="2.5" opacity="0.25"/>
+          <line x1="20" y1="90" x2="200" y2="90" stroke="currentColor" stroke-width="2" opacity="0.15"/>
+          <circle cx="110" cy="50" r="22" fill="var(--accent-primary)" opacity="0.12"/>
+          <path d="M110 38C103.373 38 98 43.3726 98 50C98 52.2213 98.6064 54.3043 99.6592 56.0933L98.4 61.6L104.065 60.3893C105.795 61.3966 107.824 62 110 62C116.627 62 122 56.6274 122 50C122 43.3726 116.627 38 110 38Z" fill="var(--accent-primary)"/>
+          <line x1="10" y1="120" x2="210" y2="120" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity="0.3"/>
+        </svg>
       </div>
-      <h3 class="fw-bold mb-2">Welcome to ChatIn</h3>
-      <p class="text-muted small max-w-sm mb-4">
-        Select a conversation from the sidebar or start a new direct message or group hub.
+      <h2 class="whatsapp-empty-title fw-light mb-2">ChatIn Web</h2>
+      <p class="whatsapp-empty-desc text-muted mb-4" style="max-width: 440px; font-size: 0.88rem; line-height: 1.6;">
+        Send and receive messages without keeping your phone online.<br>
+        Encrypted real-time messaging, audio, and video calling.
       </p>
-      <button class="btn chatin-btn-gradient rounded-pill px-4 py-2" id="emptyNewChatBtn">
-        <i class="bi bi-plus-lg me-1"></i> Start New Conversation
+      <button class="btn btn-whatsapp-primary px-4 py-2 rounded-pill fw-semibold mb-5 shadow-sm" id="emptyNewChatBtn">
+        <i class="bi bi-chat-plus-fill me-2"></i> Start New Conversation
       </button>
+      <div class="whatsapp-empty-footer position-absolute bottom-0 mb-4 extra-small text-muted d-flex align-items-center gap-2 opacity-75">
+        <i class="bi bi-lock-fill text-secondary"></i> End-to-end encrypted
+      </div>
     </div>
 
     <!-- Active Conversation View -->
@@ -222,29 +232,29 @@
         </div>
 
         <form id="messageForm" class="d-flex align-items-center gap-2">
-          <button type="button" class="btn btn-icon" id="emojiToggleBtn" title="Add Emoji">
-            <i class="bi bi-emoji-smile"></i>
+          <button type="button" class="btn btn-icon text-muted" id="emojiToggleBtn" title="Add Emoji">
+            <i class="bi bi-emoji-smile fs-5"></i>
           </button>
 
           <button type="button" class="btn btn-icon text-muted" id="formatToggleBtn" title="Format Text">
-            <i class="bi bi-type-bold"></i>
+            <i class="bi bi-type-bold fs-5"></i>
           </button>
 
-          <label class="btn btn-icon mb-0" title="Attach file or photo">
-            <i class="bi bi-paperclip"></i>
+          <label class="btn btn-icon text-muted mb-0 cursor-pointer" title="Attach file or photo">
+            <i class="bi bi-paperclip fs-5"></i>
             <input type="file" id="fileInput" class="d-none">
           </label>
 
-          <button type="button" class="btn btn-icon text-muted" id="micBtn" title="Record Voice Note">
-            <i class="bi bi-mic"></i>
-          </button>
-
           <div class="input-wrap flex-grow-1">
-            <input type="text" id="messageInput" class="form-control composer-input" placeholder="Type a message... (Press Enter to send)" autocomplete="off">
+            <input type="text" id="messageInput" class="form-control composer-input" placeholder="Type a message" autocomplete="off">
           </div>
 
-          <button type="submit" class="btn btn-send chatin-btn-gradient" id="sendBtn" title="Send message">
-            <i class="bi bi-send-fill"></i>
+          <button type="button" class="btn btn-icon text-muted" id="micBtn" title="Record Voice Note">
+            <i class="bi bi-mic fs-5"></i>
+          </button>
+
+          <button type="submit" class="btn btn-icon text-success d-none" id="sendBtn" title="Send message">
+            <i class="bi bi-send-fill fs-5 text-whatsapp"></i>
           </button>
         </form>
       </footer>

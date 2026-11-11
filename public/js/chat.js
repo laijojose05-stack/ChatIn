@@ -345,6 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const lastMsgObj = conv.lastMessage;
       let lastMsgText = 'No messages yet';
+      let snippetTick = '';
       if (lastMsgObj) {
         if (lastMsgObj.deletedAt || lastMsgObj.isDeleted) {
           lastMsgText = 'This message was deleted';
@@ -352,6 +353,20 @@ document.addEventListener('DOMContentLoaded', () => {
           lastMsgText = lastMsgObj.content;
         } else if (lastMsgObj.attachments && lastMsgObj.attachments.length > 0) {
           lastMsgText = 'Sent an attachment';
+        }
+
+        const lastSenderId = (lastMsgObj.senderId?._id || lastMsgObj.senderId || '').toString();
+        const currentId = (currentUser._id || '').toString();
+        if (lastSenderId === currentId) {
+          const isRead = lastMsgObj.readBy && lastMsgObj.readBy.length > 1;
+          const isDelivered = lastMsgObj.deliveredTo && lastMsgObj.deliveredTo.length > 1;
+          if (isRead) {
+            snippetTick = '<i class="bi bi-check2-all text-info me-1" title="Read"></i>';
+          } else if (isDelivered) {
+            snippetTick = '<i class="bi bi-check2-all text-secondary me-1" title="Delivered"></i>';
+          } else {
+            snippetTick = '<i class="bi bi-check2 text-secondary me-1" title="Sent"></i>';
+          }
         }
       }
 
@@ -377,7 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="conv-time">${time}</span>
           </div>
           <div class="d-flex justify-content-between align-items-center">
-            <span class="conv-snippet text-truncate">${escapeHtml(lastMsgText)}</span>
+            <span class="conv-snippet text-truncate">${snippetTick}${escapeHtml(lastMsgText)}</span>
             ${unread > 0 ? `<span class="unread-pill">${unread}</span>` : ''}
           </div>
         </div>
@@ -1104,14 +1119,32 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  function syncComposerButtons() {
+    const hasText = messageInput && messageInput.value.trim().length > 0;
+    const hasAttach = !!pendingAttachment;
+    const micBtn = document.getElementById('micBtn');
+    const sendBtn = document.getElementById('sendBtn');
+    if (micBtn && sendBtn) {
+      if (hasText || hasAttach) {
+        micBtn.classList.add('d-none');
+        sendBtn.classList.remove('d-none');
+      } else {
+        micBtn.classList.remove('d-none');
+        sendBtn.classList.add('d-none');
+      }
+    }
+  }
+
   function updateCharCounter() {
     if (charCounter && messageInput) {
       charCounter.textContent = messageInput.value.length;
     }
+    syncComposerButtons();
   }
 
   if (messageInput) {
     messageInput.addEventListener('input', updateCharCounter);
+    syncComposerButtons();
   }
 
   // ==========================================================================
@@ -2293,6 +2326,7 @@ document.addEventListener('DOMContentLoaded', () => {
             attachmentPreview.classList.remove('d-none');
             attachmentPreview.classList.add('d-flex');
           }
+          syncComposerButtons();
         } else {
           alert(data.message || 'File upload failed.');
         }
@@ -2313,6 +2347,7 @@ document.addEventListener('DOMContentLoaded', () => {
       attachmentPreview.classList.add('d-none');
       attachmentPreview.classList.remove('d-flex');
     }
+    syncComposerButtons();
   }
 
   // 9. Emoji Picker Setup

@@ -315,22 +315,37 @@
   color: var(--text-secondary);
 }
 
-/* Empty Chat Canvas */
+/* ==========================================================================
+   WhatsApp Web Empty State
+   ========================================================================== */
 .empty-chat-state {
-  background: radial-gradient(circle at 50% 40%, rgba(0, 168, 132, 0.08) 0%, transparent 65%);
+  background-color: var(--bg-chat);
+  border-bottom: 6px solid var(--accent-primary);
 }
 
-.empty-icon-wrap {
-  width: 96px;
-  height: 96px;
-  border-radius: 28px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: var(--shadow-md);
-  color: var(--accent-primary);
+.whatsapp-empty-title {
+  color: var(--text-primary);
+  font-size: 2rem;
+  letter-spacing: -0.02em;
+}
+
+.whatsapp-empty-desc {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.btn-whatsapp-primary {
+  background-color: var(--accent-primary);
+  color: #111b21;
+  font-size: 0.9rem;
+  transition: all var(--transition-fast);
+}
+
+.btn-whatsapp-primary:hover {
+  background-color: var(--accent-hover);
+  color: #111b21;
+  transform: translateY(-1px);
 }
 
 /* Messages Viewport with WhatsApp Doodle Wallpaper */
@@ -412,26 +427,54 @@
 /* WhatsApp Message Bubbles */
 .message-bubble {
   max-width: 100%;
-  padding: 0.55rem 0.85rem;
-  font-size: 0.93rem;
-  line-height: 1.45;
+  padding: 6px 9px 8px 9px;
+  font-size: 0.91rem;
+  line-height: 1.4;
   position: relative;
   word-wrap: break-word;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
   transition: transform var(--transition-fast);
 }
 
 .message-row.sent .message-bubble {
   background: var(--bubble-sent);
   color: var(--bubble-sent-text);
-  border-radius: 16px 16px 3px 16px;
+  border-radius: 7.5px;
+  border-top-right-radius: 0;
+  position: relative;
+}
+
+.message-row.sent .message-bubble::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -8px;
+  width: 0;
+  height: 0;
+  border-top: 0 solid transparent;
+  border-bottom: 11px solid transparent;
+  border-left: 8px solid var(--bubble-sent);
 }
 
 .message-row.received .message-bubble {
   background-color: var(--bubble-received);
   color: var(--bubble-received-text);
   border: 1px solid var(--bubble-received-border);
-  border-radius: 16px 16px 16px 3px;
+  border-radius: 7.5px;
+  border-top-left-radius: 0;
+  position: relative;
+}
+
+.message-row.received .message-bubble::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -8px;
+  width: 0;
+  height: 0;
+  border-top: 0 solid transparent;
+  border-bottom: 11px solid transparent;
+  border-right: 8px solid var(--bubble-received);
 }
 
 .msg-sender-name {
@@ -596,32 +639,39 @@
 }
 
 /* ==========================================================================
-   3. Message Composer Bar (Floating WhatsApp Pill)
+   3. Message Composer Bar (WhatsApp Web Authentic Bar)
    ========================================================================== */
 .message-composer-bar {
-  background-color: var(--bg-sidebar-glass);
-  backdrop-filter: var(--glass-filter);
-  -webkit-backdrop-filter: var(--glass-filter);
+  background-color: var(--bg-card);
   border-top: 1px solid var(--border-color);
-  padding: 0.65rem 1rem;
+  padding: 0.6rem 1rem;
   position: relative;
   z-index: 10;
 }
 
 .composer-input {
-  border-radius: var(--radius-pill) !important;
-  padding: 0.65rem 1.25rem !important;
+  border-radius: 8px !important;
+  padding: 0.55rem 0.95rem !important;
   font-size: 0.93rem !important;
-  background-color: var(--bg-input) !important;
-  border: 1px solid var(--border-color) !important;
+  background-color: var(--bg-input-focus) !important;
+  border: none !important;
   color: var(--text-primary) !important;
   transition: all var(--transition-fast);
 }
 
 .composer-input:focus {
   background-color: var(--bg-input-focus) !important;
-  border-color: var(--accent-primary) !important;
-  box-shadow: 0 0 0 3px var(--accent-glow) !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.composer-input::placeholder {
+  color: var(--text-secondary) !important;
+  opacity: 0.8;
+}
+
+.text-whatsapp {
+  color: var(--accent-primary) !important;
 }
 
 .btn-send {
