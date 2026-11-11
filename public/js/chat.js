@@ -2068,18 +2068,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const escapedSender = escapeHtml(senderUsername || (isMine ? 'You' : 'User'));
       actionsHtml = `
         <div class="msg-actions-bar">
-          <button type="button" class="reaction-quick-btn" onclick="window.toggleReaction('${msg._id}', '👍')" title="Thumbs up">👍</button>
-          <button type="button" class="reaction-quick-btn" onclick="window.toggleReaction('${msg._id}', '❤️')" title="Heart">❤️</button>
-          <button type="button" class="reaction-quick-btn" onclick="window.toggleReaction('${msg._id}', '😂')" title="Laugh">😂</button>
-          <button type="button" class="reaction-quick-btn" onclick="window.toggleReaction('${msg._id}', '🔥')" title="Fire">🔥</button>
+          <button type="button" class="reaction-quick-btn" onclick="window.toggleReaction('${msg._id}', '👍')" title="Thumbs up"><i class="bi bi-hand-thumbs-up-fill text-warning"></i></button>
+          <button type="button" class="reaction-quick-btn" onclick="window.toggleReaction('${msg._id}', '❤️')" title="Heart"><i class="bi bi-heart-fill text-danger"></i></button>
+          <button type="button" class="action-icon-btn" onclick="window.startReplyToMessage('${msg._id}', '${escapedSender}', '${escapedCleanText}')" title="Reply">
+            <i class="bi bi-reply-fill"></i>
+          </button>
           <button type="button" class="action-icon-btn ${isStarred ? 'text-warning' : ''}" onclick="window.toggleStarMessage('${msg._id}')" title="Star message">
             <i class="bi bi-star${isStarred ? '-fill' : ''}"></i>
           </button>
           <button type="button" class="action-icon-btn" onclick="window.pinMessage('${msg._id}', '${escapedSender}', '${escapedCleanText}')" title="Pin message to top">
             <i class="bi bi-pin-angle"></i>
-          </button>
-          <button type="button" class="action-icon-btn" onclick="window.startReplyToMessage('${msg._id}', '${escapedSender}', '${escapedCleanText}')" title="Reply">
-            <i class="bi bi-reply-fill"></i>
           </button>
           <button type="button" class="action-icon-btn" onclick="window.copyMessageText('${escapedCleanText}')" title="Copy text">
             <i class="bi bi-clipboard"></i>
@@ -2095,20 +2093,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     row.innerHTML = `
       <div class="message-bubble-wrapper">
-        <div class="msg-swipe-reply-icon"><i class="bi bi-reply-fill"></i></div>
         <div class="message-bubble ${isDeleted ? 'opacity-75' : ''}">
           ${replyQuoteHtml}
           ${senderName ? `<div class="msg-sender-name">${escapeHtml(senderName)}</div>` : ''}
           ${!isDeleted ? attachmentHtml : ''}
-          <div class="msg-text ${isDeleted ? 'fst-italic' : ''}">${formattedHtml}</div>
-          ${reactionsHtml}
-          <div class="msg-meta">
-            <span>${time}</span>
+          <span class="msg-text ${isDeleted ? 'fst-italic' : ''}">${formattedHtml}</span>
+          <span class="msg-meta">
+            <span class="msg-time">${time}</span>
             ${starHtml}
             ${tickHtml}
-          </div>
+          </span>
+          ${reactionsHtml}
+          ${actionsHtml}
         </div>
-        ${actionsHtml}
       </div>
     `;
 

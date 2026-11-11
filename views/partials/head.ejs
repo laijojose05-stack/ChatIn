@@ -32,10 +32,10 @@
   <!-- Bootstrap Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
-  <!-- Custom Core & Chat Stylesheets -->
-  <link rel="stylesheet" href="/css/style.css">
+  <!-- Custom Core & Chat Stylesheets with Instant Cache-Buster -->
+  <link rel="stylesheet" href="/css/style.css?v=<%= Date.now() %>">
   <% if (typeof isChat !== 'undefined' && isChat) { %>
-    <link rel="stylesheet" href="/css/chat.css">
+    <link rel="stylesheet" href="/css/chat.css?v=<%= Date.now() %>">
   <% } %>
 </head>
 <body>
