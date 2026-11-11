@@ -1188,6 +1188,9 @@
   document.addEventListener('DOMContentLoaded', () => {
     cacheDomElements();
     bindCallUiEvents();
+    if (window.chatinSocket) {
+      registerSocketSignaling(window.chatinSocket);
+    }
     startIdleIncomingPoller();
   });
 

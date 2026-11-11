@@ -94,6 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
       reconnectionAttempts: 15,
       reconnectionDelay: 1000,
     });
+    window.chatinSocket = socket;
 
     // Register Socket.IO instance with WebRTC Call Manager
     if (window.ChatInCall && typeof window.ChatInCall.registerSocketSignaling === 'function') {
@@ -470,7 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Join socket room
-    if (socket) {
+    if (socket && socket.connected) {
       socket.emit('join_conversation', conv._id);
     }
 
@@ -2076,7 +2077,6 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
         ${actionsHtml}
       </div>
-    `;
     `;
 
     // Attach mobile swipe-to-reply and press-and-hold options
