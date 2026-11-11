@@ -942,7 +942,7 @@
     <div class="active-call-stage flex-grow-1 position-relative d-flex align-items-center justify-content-center overflow-hidden" id="callMediaStage">
       <!-- Remote Video (full screen/cover) -->
       <video id="remoteVideo" class="remote-call-video w-100 h-100" autoplay playsinline></video>
-      <audio id="remoteAudio" autoplay></audio>
+      <audio id="remoteAudio" autoplay playsinline preload="auto"></audio>
 
       <!-- Remote Audio Fallback (Voice calls or video disabled) -->
       <div class="remote-call-audio-view d-none flex-column align-items-center justify-content-center w-100 h-100 position-absolute top-0 start-0" id="remoteAudioPlaceholder">

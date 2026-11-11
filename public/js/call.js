@@ -286,7 +286,10 @@
     }
 
     if (dom.localVideo) dom.localVideo.srcObject = null;
-    if (dom.remoteVideo) dom.remoteVideo.srcObject = null;
+    if (dom.remoteVideo) {
+      dom.remoteVideo.srcObject = null;
+      dom.remoteVideo.classList.remove('audio-mode');
+    }
     if (dom.remoteAudio) dom.remoteAudio.srcObject = null;
 
     if (peerConnection) {
@@ -326,12 +329,54 @@
     if (dom.localCamOffPlaceholder) dom.localCamOffPlaceholder.classList.add('d-none');
   }
 
+  // Safely play remote audio across all browsers
+  function attachRemoteStream(stream) {
+    if (!stream) return;
+
+    if (dom.remoteAudio) {
+      dom.remoteAudio.srcObject = stream;
+      dom.remoteAudio.muted = false;
+      dom.remoteAudio.volume = 1.0;
+      const p = dom.remoteAudio.play();
+      if (p !== undefined) {
+        p.catch((e) => console.warn('remoteAudio play deferred:', e.message));
+      }
+    }
+
+    if (dom.remoteVideo) {
+      dom.remoteVideo.srcObject = stream;
+      dom.remoteVideo.muted = false;
+      dom.remoteVideo.volume = 1.0;
+      const p2 = dom.remoteVideo.play();
+      if (p2 !== undefined) {
+        p2.catch((e) => console.warn('remoteVideo play deferred:', e.message));
+      }
+    }
+  }
+
+  // User gesture unlock for audio playback policy
+  function unlockAudio() {
+    if (dom.remoteAudio) {
+      dom.remoteAudio.muted = false;
+      dom.remoteAudio.play().catch(() => {});
+    }
+    if (dom.remoteVideo) {
+      dom.remoteVideo.muted = false;
+      dom.remoteVideo.play().catch(() => {});
+    }
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+  }
+
   // Create RTCPeerConnection and wire handlers
   function setupPeerConnection(targetUserId, callType) {
     peerConnection = new RTCPeerConnection(rtcConfig);
 
     if (localStream) {
       localStream.getTracks().forEach((track) => {
+        track.enabled = true;
         peerConnection.addTrack(track, localStream);
       });
     }
@@ -357,20 +402,29 @@
     };
 
     peerConnection.ontrack = (event) => {
-      const [stream] = event.streams;
-      if (!stream) return;
+      let stream = event.streams && event.streams[0] ? event.streams[0] : null;
+      if (!stream) {
+        stream = new MediaStream();
+        stream.addTrack(event.track);
+      }
 
-      if (dom.remoteVideo) dom.remoteVideo.srcObject = stream;
-      if (dom.remoteAudio) dom.remoteAudio.srcObject = stream;
+      attachRemoteStream(stream);
 
       const hasVideo = stream.getVideoTracks().some((t) => t.enabled && t.readyState === 'live');
       if (callType === 'video' && hasVideo) {
         if (dom.remoteAudioPlaceholder) dom.remoteAudioPlaceholder.classList.add('d-none');
-        if (dom.remoteVideo) dom.remoteVideo.classList.remove('d-none');
+        if (dom.remoteVideo) {
+          dom.remoteVideo.classList.remove('d-none');
+          dom.remoteVideo.classList.remove('audio-mode');
+        }
       } else {
         if (dom.remoteAudioPlaceholder) {
           dom.remoteAudioPlaceholder.classList.remove('d-none');
           dom.remoteAudioPlaceholder.classList.add('d-flex');
+        }
+        if (dom.remoteVideo) {
+          dom.remoteVideo.classList.remove('d-none');
+          dom.remoteVideo.classList.add('audio-mode');
         }
       }
     };
@@ -690,7 +744,10 @@
       await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
       await flushPendingCandidates();
 
-      const answer = await peerConnection.createAnswer();
+      const answer = await peerConnection.createAnswer({
+        offerToReceiveAudio: true,
+        offerToReceiveVideo: callType === 'video',
+      });
       await peerConnection.setLocalDescription(answer);
 
       if (socketInstance && socketInstance.connected) {
@@ -818,13 +875,19 @@
     }
 
     if (callType === 'video') {
-      if (dom.remoteVideo) dom.remoteVideo.classList.remove('d-none');
+      if (dom.remoteVideo) {
+        dom.remoteVideo.classList.remove('d-none');
+        dom.remoteVideo.classList.remove('audio-mode');
+      }
       if (dom.localVideoPip) dom.localVideoPip.classList.remove('d-none');
       if (dom.remoteAudioPlaceholder) dom.remoteAudioPlaceholder.classList.add('d-none');
       if (dom.callToggleCamBtn) dom.callToggleCamBtn.classList.remove('d-none');
       if (dom.callScreenShareBtn) dom.callScreenShareBtn.classList.remove('d-none');
     } else {
-      if (dom.remoteVideo) dom.remoteVideo.classList.add('d-none');
+      if (dom.remoteVideo) {
+        dom.remoteVideo.classList.remove('d-none');
+        dom.remoteVideo.classList.add('audio-mode');
+      }
       if (dom.localVideoPip) dom.localVideoPip.classList.add('d-none');
       if (dom.remoteAudioPlaceholder) {
         dom.remoteAudioPlaceholder.classList.remove('d-none');
@@ -991,7 +1054,12 @@
   }
 
   function bindCallUiEvents() {
-    if (dom.btnAcceptCall) dom.btnAcceptCall.addEventListener('click', acceptIncomingCall);
+    if (dom.btnAcceptCall) {
+      dom.btnAcceptCall.addEventListener('click', () => {
+        unlockAudio();
+        acceptIncomingCall();
+      });
+    }
     if (dom.btnDeclineCall) dom.btnDeclineCall.addEventListener('click', declineIncomingCall);
     if (dom.btnCancelCall) dom.btnCancelCall.addEventListener('click', cancelOutgoingCall);
     if (dom.btnEndActiveCall) dom.btnEndActiveCall.addEventListener('click', endActiveCall);
@@ -1007,6 +1075,7 @@
 
     if (dom.headerAudioCallBtn) {
       dom.headerAudioCallBtn.addEventListener('click', () => {
+        unlockAudio();
         const conv = window.ChatInApp?.getActiveConversation ? window.ChatInApp.getActiveConversation() : null;
         if (!conv) {
           showCallToast('Select a conversation first to make a call.');
@@ -1027,6 +1096,7 @@
 
     if (dom.headerVideoCallBtn) {
       dom.headerVideoCallBtn.addEventListener('click', () => {
+        unlockAudio();
         const conv = window.ChatInApp?.getActiveConversation ? window.ChatInApp.getActiveConversation() : null;
         if (!conv) {
           showCallToast('Select a conversation first to make a call.');
