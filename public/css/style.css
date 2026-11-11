@@ -1,147 +1,174 @@
 /* ==========================================================================
-   ChatIn Design Tokens & Themes (Refined Dark & Clean Light)
+   ChatIn Design Tokens & Themes (WhatsApp-Style Clean Dark & Crisp Light)
    ========================================================================== */
 
 :root {
-  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
-  --radius-xl: 24px;
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+  --radius-pill: 9999px;
 
-  --accent-primary: #6366f1;
-  --accent-secondary: #8b5cf6;
-  --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  --accent-glow: rgba(99, 102, 241, 0.35);
+  /* WhatsApp Emerald / Teal Accent Tokens */
+  --accent-primary: #00a884;
+  --accent-secondary: #25d366;
+  --accent-hover: #00c298;
+  --accent-active: #008f6f;
+  --accent-gradient: linear-gradient(135deg, #00a884 0%, #128c7e 100%);
+  --accent-glow: rgba(0, 168, 132, 0.35);
 
-  --status-online: #10b981;
-  --status-offline: #64748b;
+  --status-online: #25d366;
+  --status-offline: #8696a0;
   --status-warning: #f59e0b;
+  --status-danger: #ea4335;
+  --status-read-ticks: #53bdeb;
+
+  --transition-fast: 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-normal: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-smooth: 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ==========================================================================
-   1. PREMIUM OBSIDIAN SLATE DARK THEME
+   1. WHATSAPP PREMIUM OBSIDIAN DARK THEME
    ========================================================================== */
 [data-theme="dark"],
 [data-bs-theme="dark"] {
-  --bg-app: #0b0f19;
-  --bg-sidebar: #111625;
-  --bg-chat: #0e121d;
-  --bg-card: #151b2c;
-  --bg-card-hover: #1c2438;
-  --bg-input: #151b2b;
-  --bg-input-focus: #182033;
+  --bg-app: #0c1317;
+  --bg-sidebar: #111b21;
+  --bg-sidebar-glass: rgba(17, 27, 33, 0.85);
+  --bg-chat: #0b141a;
+  --bg-card: #202c33;
+  --bg-card-hover: #222e35;
+  --bg-card-active: #2a3942;
+  --bg-input: #202c33;
+  --bg-input-focus: #2a3942;
+  --bg-floating: rgba(32, 44, 51, 0.92);
 
-  --border-color: rgba(255, 255, 255, 0.12);
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-focus: #6366f1;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-focus: #00a884;
 
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
+  --text-primary: #e9edef;
+  --text-secondary: #8696a0;
+  --text-muted: #667781;
+  --text-inverse: #111b21;
 
-  /* Bootstrap 5 Theme Variable Overrides */
-  --bs-body-color: #f8fafc !important;
-  --bs-body-bg: #0b0f19 !important;
-  --bs-secondary-color: #cbd5e1 !important;
-  --bs-secondary-color-rgb: 203, 213, 225 !important;
-  --bs-tertiary-color: #94a3b8 !important;
-  --bs-tertiary-bg: #151b2c !important;
-  --bs-border-color: rgba(255, 255, 255, 0.12) !important;
-  --bs-border-color-translucent: rgba(255, 255, 255, 0.1) !important;
+  /* Bootstrap 5 Overrides */
+  --bs-body-color: #e9edef !important;
+  --bs-body-bg: #0c1317 !important;
+  --bs-secondary-color: #8696a0 !important;
+  --bs-secondary-color-rgb: 134, 150, 160 !important;
+  --bs-tertiary-color: #667781 !important;
+  --bs-tertiary-bg: #202c33 !important;
+  --bs-border-color: rgba(255, 255, 255, 0.08) !important;
+  --bs-border-color-translucent: rgba(255, 255, 255, 0.06) !important;
   --bs-emphasis-color: #ffffff !important;
 
-  --bubble-sent: #4f46e5;
-  --bubble-sent-gradient: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-  --bubble-sent-text: #ffffff;
-  --bubble-received: #1a2030;
-  --bubble-received-text: #e2e8f0;
-  --bubble-received-border: rgba(255, 255, 255, 0.08);
+  /* WhatsApp Iconic Message Bubbles */
+  --bubble-sent: #005c4b;
+  --bubble-sent-gradient: linear-gradient(135deg, #005c4b 0%, #006653 100%);
+  --bubble-sent-text: #e9edef;
+  --bubble-received: #202c33;
+  --bubble-received-text: #e9edef;
+  --bubble-received-border: rgba(255, 255, 255, 0.04);
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 25px rgba(99, 102, 241, 0.25);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 24px rgba(0, 168, 132, 0.28);
+  --glass-filter: blur(18px) saturate(160%);
 }
 
 /* ==========================================================================
-   2. CRISP LIGHT THEME
+   2. WHATSAPP CRISP LIGHT THEME
    ========================================================================== */
 [data-theme="light"],
 [data-bs-theme="light"] {
-  --bg-app: #f4f6fa;
+  --bg-app: #f0f2f5;
   --bg-sidebar: #ffffff;
-  --bg-chat: #f8fafc;
+  --bg-sidebar-glass: rgba(255, 255, 255, 0.88);
+  --bg-chat: #efeae2;
   --bg-card: #ffffff;
-  --bg-card-hover: #f1f5f9;
-  --bg-input: #ffffff;
+  --bg-card-hover: #f5f6f6;
+  --bg-card-active: #e9edef;
+  --bg-input: #f0f2f5;
   --bg-input-focus: #ffffff;
+  --bg-floating: rgba(255, 255, 255, 0.94);
 
-  --border-color: rgba(0, 0, 0, 0.1);
-  --border-subtle: rgba(0, 0, 0, 0.05);
-  --border-focus: #6366f1;
+  --border-color: rgba(11, 20, 26, 0.08);
+  --border-subtle: rgba(11, 20, 26, 0.04);
+  --border-focus: #008069;
 
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
+  --text-primary: #111b21;
+  --text-secondary: #54656f;
+  --text-muted: #8696a0;
+  --text-inverse: #ffffff;
 
-  /* Bootstrap 5 Theme Variable Overrides */
-  --bs-body-color: #0f172a !important;
-  --bs-body-bg: #f4f6fa !important;
-  --bs-secondary-color: #475569 !important;
-  --bs-secondary-color-rgb: 71, 85, 105 !important;
-  --bs-tertiary-color: #64748b !important;
-  --bs-tertiary-bg: #f8fafc !important;
-  --bs-border-color: rgba(0, 0, 0, 0.1) !important;
-  --bs-border-color-translucent: rgba(0, 0, 0, 0.08) !important;
-  --bs-emphasis-color: #0f172a !important;
+  /* Bootstrap 5 Overrides */
+  --bs-body-color: #111b21 !important;
+  --bs-body-bg: #f0f2f5 !important;
+  --bs-secondary-color: #54656f !important;
+  --bs-secondary-color-rgb: 84, 101, 111 !important;
+  --bs-tertiary-color: #8696a0 !important;
+  --bs-tertiary-bg: #f5f6f6 !important;
+  --bs-border-color: rgba(11, 20, 26, 0.08) !important;
+  --bs-border-color-translucent: rgba(11, 20, 26, 0.06) !important;
+  --bs-emphasis-color: #111b21 !important;
 
-  --bubble-sent: #4f46e5;
-  --bubble-sent-gradient: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%);
-  --bubble-sent-text: #ffffff;
+  /* WhatsApp Light Message Bubbles */
+  --bubble-sent: #d9fdd3;
+  --bubble-sent-gradient: linear-gradient(135deg, #d9fdd3 0%, #d4f8ce 100%);
+  --bubble-sent-text: #111b21;
   --bubble-received: #ffffff;
-  --bubble-received-text: #1e293b;
-  --bubble-received-border: rgba(0, 0, 0, 0.08);
+  --bubble-received-text: #111b21;
+  --bubble-received-border: rgba(11, 20, 26, 0.06);
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.1);
-  --shadow-glow: 0 0 25px rgba(99, 102, 241, 0.15);
+  --shadow-sm: 0 1px 2px rgba(11, 20, 26, 0.08);
+  --shadow-md: 0 4px 14px rgba(11, 20, 26, 0.1);
+  --shadow-lg: 0 12px 32px rgba(11, 20, 26, 0.12);
+  --shadow-glow: 0 0 20px rgba(0, 128, 105, 0.18);
+  --glass-filter: blur(18px) saturate(180%);
 }
 
 /* ==========================================================================
    Global Base & Typography
    ========================================================================== */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 html, body {
-  height: 100%;
   margin: 0;
   padding: 0;
   font-family: var(--font-sans);
   background-color: var(--bg-app);
   color: var(--text-primary);
-  overflow-x: hidden;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-/* Smooth custom scrollbars */
+/* Custom Sleek Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
   background: var(--border-color);
-  border-radius: 9999px;
+  border-radius: var(--radius-pill);
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
 
 .extra-small {
-  font-size: 0.75rem;
+  font-size: 0.76rem;
 }
 
 .gradient-text {
@@ -150,41 +177,50 @@ html, body {
   -webkit-text-fill-color: transparent;
 }
 
-/* Buttons */
+/* ==========================================================================
+   Buttons & Micro-Interactions
+   ========================================================================== */
 .chatin-btn-gradient {
   background: var(--accent-gradient);
   color: #ffffff !important;
   border: none;
   font-weight: 600;
   box-shadow: 0 4px 14px var(--accent-glow);
-  transition: all 0.2s ease;
+  transition: all var(--transition-normal);
+  border-radius: var(--radius-pill);
 }
 
 .chatin-btn-gradient:hover {
   transform: translateY(-1px);
   box-shadow: 0 6px 20px var(--accent-glow);
-  filter: brightness(1.08);
+  filter: brightness(1.06);
 }
 
 .chatin-btn-gradient:active {
-  transform: translateY(0);
+  transform: scale(0.97);
 }
 
 .btn-icon {
   background: transparent;
   border: none;
   color: var(--text-secondary);
-  padding: 0.45rem;
-  border-radius: var(--radius-sm);
+  padding: 0.5rem;
+  border-radius: var(--radius-pill);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.15s ease, background 0.15s ease;
+  transition: all var(--transition-fast);
+  cursor: pointer;
 }
 
 .btn-icon:hover {
   color: var(--text-primary);
   background: var(--bg-card-hover);
+  transform: translateY(-1px);
+}
+
+.btn-icon:active {
+  transform: scale(0.92);
 }
 
 .btn-theme-toggle {
@@ -199,7 +235,7 @@ html, body {
   justify-content: center;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
 }
 
 .btn-theme-toggle:hover {
@@ -210,14 +246,16 @@ html, body {
 
 /* Header & Floating Nav */
 .chatin-header-wrap {
-  padding-top: 1.25rem;
+  padding-top: 1rem;
 }
 
 .chatin-floating-nav {
-  background: var(--bg-card);
-  backdrop-filter: blur(20px);
+  background: var(--bg-floating);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-md);
+  transition: all var(--transition-normal);
 }
 
 .chatin-brand-name {
@@ -236,424 +274,135 @@ html, body {
   text-decoration: none;
   font-size: 0.9rem;
   font-weight: 500;
-  transition: color 0.15s ease;
+  transition: color var(--transition-fast);
 }
 
 .chatin-nav-anchor:hover {
-  color: var(--text-primary);
-}
-
-/* Landing Elements */
-.chatin-hero {
-  position: relative;
-}
-
-[data-theme="dark"] .chatin-hero::before {
-  content: '';
-  position: absolute;
-  top: 10%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 600px;
-  height: 350px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.inline-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.4rem 0.95rem;
-  border-radius: 9999px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  box-shadow: var(--shadow-sm);
-}
-
-.chatin-hero-title {
-  font-size: 3.25rem;
-  font-weight: 800;
-  line-height: 1.15;
-  letter-spacing: -0.03em;
-  margin-bottom: 1.25rem;
-  position: relative;
-  z-index: 1;
-}
-
-.chatin-hero-sub {
-  font-size: 1.15rem;
-  color: var(--text-secondary);
-  max-width: 640px;
-  line-height: 1.6;
-  position: relative;
-  z-index: 1;
-}
-
-.hero-metric-card {
-  padding: 1.35rem 1rem;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  transition: all 0.2s ease;
-}
-
-.hero-metric-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(99, 102, 241, 0.35);
-  box-shadow: var(--shadow-md);
-}
-
-.hero-metric-card i {
-  font-size: 1.6rem;
-  margin-bottom: 0.5rem;
-  display: inline-block;
-}
-
-.metric-title {
-  font-weight: 700;
-  font-size: 0.95rem;
-}
-
-.metric-desc {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
-
-/* Feature Section */
-.section-tag {
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
   color: var(--accent-primary);
-  margin-bottom: 0.5rem;
-}
-
-.section-title {
-  font-size: 2.15rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-
-.feature-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  padding: 1.75rem;
-  box-shadow: var(--shadow-sm);
-  transition: all 0.2s ease;
-}
-
-.feature-card:hover {
-  transform: translateY(-3px);
-  border-color: rgba(99, 102, 241, 0.4);
-  box-shadow: var(--shadow-md);
-}
-
-.feature-icon-box {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.35rem;
-  margin-bottom: 1rem;
-}
-
-.feature-title {
-  font-size: 1.15rem;
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-}
-
-.feature-body {
-  font-size: 0.875rem;
-  color: var(--text-secondary);
-  line-height: 1.5;
-  margin: 0;
-}
-
-/* CTA Banner */
-.cta-banner {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-lg);
 }
 
 /* ==========================================================================
-   Auth Cards & Split Layout (Dark/Light Polished)
+   Auth Cards & Split Layout (WhatsApp Glassmorphic Style)
    ========================================================================== */
 .auth-page-wrapper {
   background: var(--bg-app);
   position: relative;
   min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  overflow: hidden;
 }
 
-[data-theme="dark"] .auth-page-wrapper::before,
-[data-bs-theme="dark"] .auth-page-wrapper::before {
+/* Background Atmospheric Glow */
+.auth-page-wrapper::before {
   content: '';
   position: absolute;
-  top: 0;
+  top: -100px;
   left: 50%;
   transform: translateX(-50%);
-  width: 800px;
-  height: 600px;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.16) 0%, rgba(139, 92, 246, 0.05) 50%, transparent 75%);
+  width: 700px;
+  height: 500px;
+  background: radial-gradient(circle, rgba(0, 168, 132, 0.15) 0%, rgba(18, 140, 126, 0.05) 50%, transparent 70%);
   pointer-events: none;
 }
 
 .auth-card {
   width: 100%;
-  max-width: 460px;
+  max-width: 440px;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
-  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(20px);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg), 0 0 30px rgba(0, 168, 132, 0.08);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
   position: relative;
   z-index: 1;
-}
-
-/* Split Showcase Authentication Layout */
-.auth-split-card {
-  width: 100%;
-  max-width: 960px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(20px);
-  position: relative;
-  z-index: 1;
-}
-
-.auth-showcase-panel {
-  background: linear-gradient(145deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.04) 100%);
-  border-right: 1px solid var(--border-color);
-  position: relative;
-}
-
-.showcase-title {
-  font-size: 1.85rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.25;
-  color: var(--text-primary);
-}
-
-.showcase-desc {
-  font-size: 0.95rem;
-  line-height: 1.6;
-  color: var(--text-secondary);
-}
-
-.showcase-icon-pill {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--bg-input);
-  border: 1px solid var(--border-color);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  font-size: 1rem;
-}
-
-.avatar-stack {
-  display: flex;
-  align-items: center;
-}
-
-.stacked-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  color: #fff;
-  font-weight: 700;
-  font-size: 0.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 2px solid var(--bg-card);
-  margin-left: -8px;
-}
-
-.stacked-avatar:first-child {
-  margin-left: 0;
-}
-
-/* Live Initials Preview */
-.avatar-live-preview {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--accent-gradient);
-  color: #ffffff;
-  font-weight: 800;
-  font-size: 1.1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 14px var(--accent-glow);
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  user-select: none;
-}
-
-.avatar-live-preview.bump {
-  transform: scale(1.15);
-}
-
-/* Custom Input Groups & Validations */
-.custom-input-group .input-group-text {
-  background-color: var(--bg-input) !important;
-  border-color: var(--border-color) !important;
-  color: var(--text-muted) !important;
-  transition: border-color 0.15s ease;
-}
-
-.custom-input-group .btn {
-  background-color: var(--bg-input) !important;
-  border-color: var(--border-color) !important;
-  color: var(--text-muted) !important;
-}
-
-.custom-input-group .btn:hover {
-  color: var(--text-primary) !important;
-}
-
-.custom-input-group .form-control {
-  border-color: var(--border-color) !important;
-}
-
-.custom-input-group:focus-within .input-group-text,
-.custom-input-group:focus-within .form-control {
-  border-color: var(--accent-primary) !important;
-  background-color: var(--bg-input-focus) !important;
-}
-
-.custom-input-group.is-valid .input-group-text,
-.custom-input-group.is-valid .form-control {
-  border-color: var(--status-online) !important;
-}
-
-.custom-input-group.is-invalid .input-group-text,
-.custom-input-group.is-invalid .form-control {
-  border-color: #ef4444 !important;
-}
-
-/* Password Strength Bar */
-.password-strength-container .progress {
-  border-radius: 9999px;
   overflow: hidden;
-  background: var(--bg-card-hover) !important;
+  animation: authSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.password-strength-container .progress-bar {
-  transition: width 0.3s ease, background-color 0.3s ease;
+@keyframes authSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
-.rule-checked {
-  color: var(--status-online) !important;
-  font-weight: 600;
-}
-
-.rule-checked i {
-  color: var(--status-online);
-}
-
-.btn-back-home {
-  color: var(--text-secondary) !important;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.btn-back-home:hover {
-  color: var(--text-primary) !important;
-  transform: translateX(-3px);
-}
-
-.auth-sub {
-  color: var(--text-secondary) !important;
-  font-size: 0.9rem;
-}
-
-.text-muted,
-[data-theme="dark"] .text-muted,
-[data-bs-theme="dark"] .text-muted {
-  color: var(--text-secondary) !important;
-}
-
-.extra-small.text-muted,
-small.text-muted {
-  color: var(--text-secondary) !important;
-  opacity: 0.9;
-}
-
-.auth-brand-name {
-  font-size: 1.5rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--text-primary);
+.auth-brand-logo {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: var(--accent-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 1.6rem;
+  box-shadow: 0 8px 20px var(--accent-glow);
 }
 
 .auth-heading {
+  font-size: 1.6rem;
   font-weight: 800;
   letter-spacing: -0.02em;
-  color: var(--text-primary) !important;
-  margin-bottom: 0.25rem;
+  color: var(--text-primary);
 }
 
-/* Form Controls (Inputs, Selects, Textareas) */
-.form-control {
+.auth-sub {
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+}
+
+/* Form Inputs */
+.form-control, .input-group-text {
   background-color: var(--bg-input) !important;
   border: 1px solid var(--border-color) !important;
   color: var(--text-primary) !important;
-  transition: all 0.15s ease;
-}
-
-.form-control::placeholder {
-  color: var(--text-muted) !important;
-  opacity: 0.8;
+  transition: all var(--transition-fast);
 }
 
 .form-control:focus {
   background-color: var(--bg-input-focus) !important;
   border-color: var(--accent-primary) !important;
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25) !important;
+  box-shadow: 0 0 0 3px var(--accent-glow) !important;
   color: var(--text-primary) !important;
 }
 
-/* Modal Styling */
-.chatin-modal {
-  background: var(--bg-card) !important;
-  border: 1px solid var(--border-color) !important;
+.form-control::placeholder {
+  color: var(--text-muted) !important;
+}
+
+.input-group:focus-within {
+  box-shadow: 0 0 0 3px var(--accent-glow);
+  border-radius: var(--radius-md);
+}
+
+.input-group:focus-within .form-control,
+.input-group:focus-within .input-group-text {
+  border-color: var(--accent-primary) !important;
+}
+
+/* Modals */
+.chatin-modal .modal-content {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
-  color: var(--text-primary);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  overflow: hidden;
 }
 
-.modal-header, .modal-footer {
-  border-color: var(--border-subtle) !important;
+.chatin-modal .modal-header {
+  border-bottom: 1px solid var(--border-color);
 }
 
-/* ==========================================================================
-   Mobile Responsiveness for Auth & Global Modals
-   ========================================================================== */
-@media (max-width: 576px) {
-  .auth-card {
-    padding: 1.5rem 1.15rem !important;
-    border-radius: var(--radius-lg) !important;
-  }
-
-  .form-control {
-    font-size: 16px !important; /* Prevents auto-zoom on iOS */
-    min-height: 46px;
-  }
-
-  .auth-heading {
-    font-size: 1.6rem;
-  }
+.chatin-modal .modal-footer {
+  border-top: 1px solid var(--border-color);
 }

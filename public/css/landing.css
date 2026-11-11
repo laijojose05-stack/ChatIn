@@ -45,7 +45,7 @@
   left: 12%;
   width: 580px;
   height: 580px;
-  background: radial-gradient(circle, #6366f1 0%, #38bdf8 55%, transparent 75%);
+  background: radial-gradient(circle, #00a884 0%, #128c7e 55%, transparent 75%);
 }
 
 .sphere-mid-right {
@@ -53,7 +53,7 @@
   right: -100px;
   width: 600px;
   height: 600px;
-  background: radial-gradient(circle, #8b5cf6 0%, #ec4899 55%, transparent 75%);
+  background: radial-gradient(circle, #25d366 0%, #00a884 55%, transparent 75%);
 }
 
 [data-theme='light'] .chatin-glow-sphere {
@@ -364,8 +364,9 @@
 
 .bubble-me {
   background: var(--bubble-sent-gradient);
-  color: #ffffff;
-  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+  color: var(--bubble-sent-text);
+  box-shadow: 0 4px 14px var(--accent-glow);
+  border-radius: 16px 16px 4px 16px;
 }
 
 .sandbox-reaction-pill {
