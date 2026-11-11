@@ -169,7 +169,99 @@ async function runTests() {
     await User.deleteOne({ email: testEmail });
     console.log('   ✅ Automated test user cleaned up from database');
 
-    console.log('\n🎉 ALL 11 TESTS PASSED! ChatIn Single-Directory Node App is 100% operational, spam-protected, and equipped with settings.\n');
+    // 12. Test WebRTC Real-Time Audio & Video Call Socket Signaling
+    console.log('12. Testing WebRTC Audio & Video Calling Signaling...');
+    const EventEmitter = require('events');
+    const { registerSocketHandlers } = require('./sockets/socketHandler');
+
+    const sockets = new Map();
+    const rooms = new Map();
+    let connHandler = null;
+
+    const mockIo = {
+      use() {},
+      on(event, handler) {
+        if (event === 'connection') connHandler = handler;
+      },
+      to(room) {
+        return {
+          emit(event, data) {
+            if (rooms.has(room)) {
+              rooms.get(room).forEach((sockId) => {
+                const s = sockets.get(sockId);
+                if (s) s.emit(event, data);
+              });
+            }
+          },
+        };
+      },
+      emit(event, data) {
+        sockets.forEach((s) => s.emit(event, data));
+      },
+    };
+
+    registerSocketHandlers(mockIo);
+
+    function createMockSocket(uId, uname) {
+      const s = new EventEmitter();
+      s.id = 'sock_' + uId;
+      s.user = { _id: { toString: () => uId }, username: uname, profilePicture: '' };
+      s.handshake = { auth: {}, headers: {} };
+      s.join = (room) => {
+        if (!rooms.has(room)) rooms.set(room, new Set());
+        rooms.get(room).add(s.id);
+      };
+      s.leave = (room) => {
+        if (rooms.has(room)) rooms.get(room).delete(s.id);
+      };
+      sockets.set(s.id, s);
+      return s;
+    }
+
+    const testCallerId = '507f1f77bcf86cd799439011';
+    const testCalleeId = '507f1f77bcf86cd799439012';
+    const callerSock = createMockSocket(testCallerId, 'Caller');
+    const calleeSock = createMockSocket(testCalleeId, 'Callee');
+
+    await connHandler(callerSock);
+    await connHandler(calleeSock);
+
+    let incCall = null;
+    calleeSock.on('call:incoming', (d) => { incCall = d; });
+    callerSock.emit('call:initiate', {
+      targetUserId: testCalleeId,
+      conversationId: '507f1f77bcf86cd799439013',
+      callType: 'video',
+      offer: { type: 'offer', sdp: 'test-sdp' },
+    });
+
+    if (!incCall || incCall.callType !== 'video') {
+      throw new Error('WebRTC call:initiate signaling failed');
+    }
+
+    let accCall = null;
+    callerSock.on('call:accepted', (d) => { accCall = d; });
+    calleeSock.emit('call:accept', {
+      callerId: testCallerId,
+      answer: { type: 'answer', sdp: 'test-ans-sdp' },
+      callType: 'video',
+    });
+
+    if (!accCall || accCall.answer.sdp !== 'test-ans-sdp') {
+      throw new Error('WebRTC call:accept signaling failed');
+    }
+
+    let endCall = null;
+    calleeSock.on('call:ended', (d) => { endCall = d; });
+    callerSock.emit('call:end', { targetUserId: testCalleeId });
+
+    if (!endCall) {
+      throw new Error('WebRTC call:end signaling failed');
+    }
+
+    console.log('   ✅ WebRTC call initiation, acceptance, and termination signaling validated');
+
+    console.log('\n🎉 ALL 12 TESTS PASSED! ChatIn Single-Directory Node App is 100% operational, spam-protected, and equipped with Audio & Video Calling.\n');
     process.exit(0);
   } catch (err) {
     console.error('❌ Test failed:', err.message);

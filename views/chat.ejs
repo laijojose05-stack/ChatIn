@@ -104,6 +104,12 @@
         </div>
 
         <div class="d-flex align-items-center gap-1 flex-shrink-0">
+          <button class="btn btn-icon call-header-btn" id="headerAudioCallBtn" title="Start voice call" aria-label="Audio Call">
+            <i class="bi bi-telephone text-success"></i>
+          </button>
+          <button class="btn btn-icon call-header-btn" id="headerVideoCallBtn" title="Start video call" aria-label="Video Call">
+            <i class="bi bi-camera-video text-primary"></i>
+          </button>
           <button class="btn btn-icon" id="chatSearchToggleBtn" title="Search in conversation">
             <i class="bi bi-search"></i>
           </button>
@@ -864,6 +870,142 @@
   </div>
 </div>
 
+<!-- ========================================== -->
+<!-- WEBRTC REAL-TIME AUDIO & VIDEO CALL MODALS -->
+<!-- ========================================== -->
+
+<!-- 1. Incoming Call Dialog -->
+<div class="call-backdrop-overlay d-none" id="incomingCallModal" role="dialog" aria-modal="true" aria-labelledby="incomingCallerName">
+  <div class="call-dialog-card glass-panel shadow-24 text-center">
+    <div class="call-avatar-wrapper position-relative mx-auto my-3">
+      <div class="call-avatar-ripple"></div>
+      <div class="call-avatar-ripple delay-1"></div>
+      <div class="call-avatar-circle" id="incomingCallerAvatar">CI</div>
+    </div>
+    <h4 class="fw-bold text-white mb-1 px-2 text-truncate" id="incomingCallerName">Incoming Call</h4>
+    <p class="text-white-50 small mb-4" id="incomingCallTypeLabel">
+      <i class="bi bi-camera-video me-1"></i> Incoming Call...
+    </p>
+    <div class="d-flex justify-content-center align-items-center gap-4 mt-2">
+      <button type="button" class="btn btn-danger btn-call-circle" id="btnDeclineCall" title="Decline">
+        <i class="bi bi-telephone-x-fill fs-4"></i>
+      </button>
+      <button type="button" class="btn btn-success btn-call-circle btn-call-pulse" id="btnAcceptCall" title="Accept Call">
+        <i class="bi bi-telephone-fill fs-4" id="acceptCallIcon"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 2. Outgoing Call Dialog -->
+<div class="call-backdrop-overlay d-none" id="outgoingCallModal" role="dialog" aria-modal="true" aria-labelledby="outgoingPeerName">
+  <div class="call-dialog-card glass-panel shadow-24 text-center">
+    <div class="call-avatar-wrapper position-relative mx-auto my-3">
+      <div class="call-avatar-ripple"></div>
+      <div class="call-avatar-circle" id="outgoingPeerAvatar">CI</div>
+    </div>
+    <h4 class="fw-bold text-white mb-1 px-2 text-truncate" id="outgoingPeerName">Calling...</h4>
+    <p class="text-white-50 small mb-4" id="outgoingCallStatus">
+      <span class="spinner-grow spinner-grow-sm text-primary me-1" role="status"></span>
+      Ringing...
+    </p>
+    <div class="d-flex justify-content-center mt-2">
+      <button type="button" class="btn btn-danger btn-call-circle" id="btnCancelCall" title="Cancel Call">
+        <i class="bi bi-telephone-x-fill fs-4"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 3. Active Call Window / Fullscreen Overlay -->
+<div class="active-call-overlay d-none" id="activeCallModal" role="dialog" aria-modal="true">
+  <div class="active-call-layout d-flex flex-column h-100 w-100 position-relative">
+    <!-- Top Bar -->
+    <div class="active-call-header d-flex justify-content-between align-items-center px-3 px-md-4 py-3">
+      <div class="d-flex align-items-center gap-2 overflow-hidden">
+        <span class="call-pulse-dot"></span>
+        <span class="fw-semibold text-white text-truncate" id="activeCallPeerName">Contact</span>
+        <span class="badge bg-black bg-opacity-50 text-white font-monospace border border-white border-opacity-10" id="callDurationTimer">00:00</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-success bg-opacity-75 text-white d-none d-sm-inline" id="callQualityBadge">Connected</span>
+        <button type="button" class="btn btn-icon btn-sm text-white" id="btnMinimizeCall" title="Minimize Call">
+          <i class="bi bi-dash-lg fs-5"></i>
+        </button>
+        <button type="button" class="btn btn-icon btn-sm text-white" id="btnFullscreenCall" title="Toggle Fullscreen">
+          <i class="bi bi-arrows-fullscreen"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Media Stage -->
+    <div class="active-call-stage flex-grow-1 position-relative d-flex align-items-center justify-content-center overflow-hidden" id="callMediaStage">
+      <!-- Remote Video (full screen/cover) -->
+      <video id="remoteVideo" class="remote-call-video w-100 h-100" autoplay playsinline></video>
+      <audio id="remoteAudio" autoplay></audio>
+
+      <!-- Remote Audio Fallback (Voice calls or video disabled) -->
+      <div class="remote-call-audio-view d-none flex-column align-items-center justify-content-center w-100 h-100 position-absolute top-0 start-0" id="remoteAudioPlaceholder">
+        <div class="audio-avatar-glow position-relative mb-3">
+          <div class="audio-glow-ring ring-1"></div>
+          <div class="audio-glow-ring ring-2"></div>
+          <div class="audio-avatar-large" id="remoteAudioAvatar">CI</div>
+        </div>
+        <h3 class="text-white fw-bold mb-1 px-3 text-truncate" id="remoteAudioName">Contact</h3>
+        <p class="text-white-50 font-monospace small" id="audioCallDuration">00:00</p>
+      </div>
+
+      <!-- Local Video Picture-in-Picture (PiP) -->
+      <div class="local-video-pip shadow-24" id="localVideoPip">
+        <video id="localVideo" autoplay playsinline muted></video>
+        <div class="local-cam-placeholder d-none" id="localCamOffPlaceholder">
+          <i class="bi bi-camera-video-off text-white opacity-75 fs-4"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Controls Floating Toolbar -->
+    <div class="active-call-controls-bar d-flex justify-content-center align-items-center gap-3 px-3 py-3">
+      <!-- Toggle Mic -->
+      <button type="button" class="btn btn-call-action" id="callToggleMicBtn" title="Mute Microphone">
+        <i class="bi bi-mic-fill fs-5" id="iconMic"></i>
+      </button>
+
+      <!-- Toggle Video Camera -->
+      <button type="button" class="btn btn-call-action" id="callToggleCamBtn" title="Turn Camera Off">
+        <i class="bi bi-camera-video-fill fs-5" id="iconCam"></i>
+      </button>
+
+      <!-- Toggle Screen Share -->
+      <button type="button" class="btn btn-call-action" id="callScreenShareBtn" title="Share Screen">
+        <i class="bi bi-display fs-5" id="iconScreen"></i>
+      </button>
+
+      <!-- Hangup / End Call -->
+      <button type="button" class="btn btn-danger btn-call-circle btn-call-hangup" id="btnEndActiveCall" title="End Call">
+        <i class="bi bi-telephone-x-fill fs-4"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 4. Minimized Call Floating Pill -->
+<div class="minimized-call-pill shadow-24 d-none" id="minimizedCallPill" title="Click to open call">
+  <div class="d-flex align-items-center gap-2" id="minimizedCallTrigger">
+    <span class="call-pulse-dot"></span>
+    <span class="fw-semibold text-white small text-truncate" style="max-width: 110px;" id="minimizedCallPeerName">Contact</span>
+    <span class="badge bg-black bg-opacity-60 text-white font-monospace extra-small" id="minimizedCallTimer">00:00</span>
+  </div>
+  <div class="d-flex align-items-center gap-1 ms-2">
+    <button type="button" class="btn btn-sm btn-icon text-white p-1" id="btnExpandCall" title="Expand Call">
+      <i class="bi bi-arrows-angle-expand"></i>
+    </button>
+    <button type="button" class="btn btn-sm btn-danger rounded-circle p-0 d-flex align-items-center justify-content-center" id="btnEndMinimizedCall" title="End Call" style="width: 26px; height: 26px;">
+      <i class="bi bi-telephone-x-fill small"></i>
+    </button>
+  </div>
+</div>
+
 <!-- Socket.IO Client Library -->
 <script src="/socket.io/socket.io.js"></script>
 <!-- Client-side Chat Logic -->
@@ -877,6 +1019,7 @@
   }) %>;
   window.INITIAL_CONVERSATIONS = <%- JSON.stringify(typeof initialConversations !== 'undefined' ? initialConversations : []) %>;
 </script>
+<script src="/js/call.js?v=<%= Date.now() %>"></script>
 <script src="/js/chat.js?v=<%= Date.now() %>"></script>
 
 <%- include('partials/footer') %>

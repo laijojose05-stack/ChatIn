@@ -5,6 +5,8 @@ const Message = require('../models/Message');
 
 // In-memory mapping of active user sockets (per instance, backed by DB status & Redis adapter)
 const onlineUsers = new Map(); // userId -> Set of socketIds
+// Active calls tracking to handle ongoing calls and mid-call disconnections
+const activeCalls = new Map(); // userId -> { peerId, callType }
 
 const registerSocketHandlers = (io) => {
   // Socket.IO Authentication Middleware
@@ -222,9 +224,145 @@ const registerSocketHandlers = (io) => {
       }
     });
 
-    // 10. Disconnect handler
+    // 10. WebRTC Audio & Video Calling Signaling
+    socket.on('call:initiate', (data) => {
+      try {
+        const { targetUserId, conversationId, callType, offer } = data || {};
+        if (!targetUserId) return;
+
+        const targetOnline = onlineUsers.has(targetUserId) && onlineUsers.get(targetUserId).size > 0;
+        if (!targetOnline) {
+          socket.emit('call:rejected', {
+            targetUserId,
+            reason: 'offline',
+            message: 'User is currently offline',
+          });
+          return;
+        }
+
+        if (activeCalls.has(targetUserId)) {
+          socket.emit('call:rejected', {
+            targetUserId,
+            reason: 'busy',
+            message: 'User is on another call',
+          });
+          return;
+        }
+
+        io.to(`user:${targetUserId}`).emit('call:incoming', {
+          caller: {
+            _id: userId,
+            username: socket.user.username,
+            profilePicture: socket.user.profilePicture,
+          },
+          targetUserId,
+          conversationId,
+          callType: callType || 'video',
+          offer,
+        });
+      } catch (err) {
+        console.error('Error in call:initiate:', err.message);
+      }
+    });
+
+    socket.on('call:accept', (data) => {
+      try {
+        const { callerId, answer, callType } = data || {};
+        if (!callerId) return;
+
+        activeCalls.set(userId, { peerId: callerId, callType });
+        activeCalls.set(callerId, { peerId: userId, callType });
+
+        io.to(`user:${callerId}`).emit('call:accepted', {
+          targetUserId: userId,
+          targetUser: {
+            _id: userId,
+            username: socket.user.username,
+            profilePicture: socket.user.profilePicture,
+          },
+          answer,
+          callType,
+        });
+      } catch (err) {
+        console.error('Error in call:accept:', err.message);
+      }
+    });
+
+    socket.on('call:reject', (data) => {
+      try {
+        const { callerId, reason } = data || {};
+        if (!callerId) return;
+        activeCalls.delete(userId);
+        activeCalls.delete(callerId);
+
+        io.to(`user:${callerId}`).emit('call:rejected', {
+          targetUserId: userId,
+          reason: reason || 'declined',
+        });
+      } catch (err) {
+        console.error('Error in call:reject:', err.message);
+      }
+    });
+
+    socket.on('call:ice_candidate', (data) => {
+      try {
+        const { targetUserId, candidate } = data || {};
+        if (!targetUserId || !candidate) return;
+
+        io.to(`user:${targetUserId}`).emit('call:ice_candidate', {
+          userId,
+          candidate,
+        });
+      } catch (err) {
+        console.error('Error in call:ice_candidate:', err.message);
+      }
+    });
+
+    socket.on('call:end', (data) => {
+      try {
+        const { targetUserId } = data || {};
+        activeCalls.delete(userId);
+        if (targetUserId) {
+          activeCalls.delete(targetUserId);
+          io.to(`user:${targetUserId}`).emit('call:ended', {
+            userId,
+          });
+        }
+      } catch (err) {
+        console.error('Error in call:end:', err.message);
+      }
+    });
+
+    socket.on('call:toggle_track', (data) => {
+      try {
+        const { targetUserId, kind, enabled } = data || {};
+        if (!targetUserId) return;
+        io.to(`user:${targetUserId}`).emit('call:track_toggled', {
+          userId,
+          kind,
+          enabled,
+        });
+      } catch (err) {
+        console.error('Error in call:toggle_track:', err.message);
+      }
+    });
+
+    // 11. Disconnect handler
     socket.on('disconnect', async () => {
       console.log(`❌ Socket disconnected: ${socket.id} (${socket.user.username})`);
+
+      // Clean up any ongoing calls for disconnected socket
+      if (activeCalls.has(userId)) {
+        const { peerId } = activeCalls.get(userId) || {};
+        activeCalls.delete(userId);
+        if (peerId) {
+          activeCalls.delete(peerId);
+          io.to(`user:${peerId}`).emit('call:ended', {
+            userId,
+            reason: 'disconnected',
+          });
+        }
+      }
 
       if (onlineUsers.has(userId)) {
         onlineUsers.get(userId).delete(socket.id);

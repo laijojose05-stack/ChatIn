@@ -5,15 +5,23 @@
 [![Express.js](https://img.shields.io/badge/Express.js-4.21-lightgrey.svg)](https://expressjs.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB_Atlas-8.10-forestgreen.svg)](https://www.mongodb.com/atlas)
 [![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3.3-purple.svg)](https://getbootstrap.com/)
-[![Tests](https://img.shields.io/badge/Tests-11%2F11%20Passing-brightgreen.svg)](test.js)
+[![Tests](https://img.shields.io/badge/Tests-12%2F12%20Passing-brightgreen.svg)](test.js)
 
-**ChatIn** is a full-featured, real-time messaging application and team workspace built as a clean, single-directory Node.js application using Express, EJS, Socket.IO, and MongoDB Atlas. It features bidirectional sub-second messaging, multi-channel group hubs, anti-spam security, a Linear-inspired landing page, and a master-detail settings suite.
+**ChatIn** is a full-featured, real-time messaging application and team workspace built as a clean, single-directory Node.js application using Express, EJS, Socket.IO, WebRTC, and MongoDB Atlas. It features bidirectional sub-second messaging, peer-to-peer HD video & voice calling, multi-channel group hubs, anti-spam security, a Linear-inspired landing page, and a master-detail settings suite.
 
 ---
 
 ## 🌟 Key Features
 
-### 1. Real-Time Bidirectional Messaging
+### 1. Peer-to-Peer Real-Time Audio & Video Calling (WebRTC)
+- **HD Video & Voice Calls**: Direct browser-to-browser P2P calls powered by WebRTC with public Google STUN fallbacks.
+- **Synthesized Ringtones & Dial Tones**: Native browser ringtones and dialing sounds synthesized with the Web Audio API without needing external media files.
+- **Active Call Floating Window**: Fullscreen or floating overlay with call duration timer, live connection indicator, and quality metrics.
+- **Picture-in-Picture (PiP)**: Draggable / pinned local video preview with instant camera toggle and audio muting.
+- **Screen Sharing**: One-click screen sharing support alongside active calls.
+- **Background Multitasking Pill**: Minimize active calls to a floating dock pill to continue reading or typing chat messages simultaneously.
+
+### 2. Real-Time Bidirectional Messaging
 - **Sub-50ms Message Delivery**: Bidirectional WebSockets via Socket.IO with automatic HTTP long-polling fallback.
 - **Delivery & Read Receipts**: Visual status checkmarks (`sent` ✓, `delivered` ✓✓, `read` ✓✓ in accent purple).
 - **Typing Indicators**: Real-time debounce broadcasting ("typing...") across direct messages and group channels.

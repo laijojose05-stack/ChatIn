@@ -95,6 +95,11 @@ document.addEventListener('DOMContentLoaded', () => {
       reconnectionDelay: 1000,
     });
 
+    // Register Socket.IO instance with WebRTC Call Manager
+    if (window.ChatInCall && typeof window.ChatInCall.registerSocketSignaling === 'function') {
+      window.ChatInCall.registerSocketSignaling(socket);
+    }
+
     socket.on('connect', () => {
       console.log('⚡ Socket connected:', socket.id);
       if (statusDot) {
@@ -442,6 +447,23 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // Call buttons status
+    const headerAudioCallBtn = document.getElementById('headerAudioCallBtn');
+    const headerVideoCallBtn = document.getElementById('headerVideoCallBtn');
+    if (headerAudioCallBtn && headerVideoCallBtn) {
+      if (isGrp) {
+        headerAudioCallBtn.classList.add('opacity-50');
+        headerAudioCallBtn.title = 'Group voice calls coming soon (1:1 supported)';
+        headerVideoCallBtn.classList.add('opacity-50');
+        headerVideoCallBtn.title = 'Group video calls coming soon (1:1 supported)';
+      } else {
+        headerAudioCallBtn.classList.remove('opacity-50');
+        headerAudioCallBtn.title = `Start voice call with ${otherUser ? otherUser.username : 'contact'}`;
+        headerVideoCallBtn.classList.remove('opacity-50');
+        headerVideoCallBtn.title = `Start video call with ${otherUser ? otherUser.username : 'contact'}`;
+      }
+    }
+
     // Join socket room
     if (socket) {
       socket.emit('join_conversation', conv._id);
@@ -546,6 +568,14 @@ document.addEventListener('DOMContentLoaded', () => {
       toast.style.opacity = '0';
     }, 2000);
   }
+  window.showToast = showToast;
+
+  // Global ChatIn Interface for Submodules (like WebRTC Calling)
+  window.ChatInApp = {
+    getActiveConversation: () => activeConversation,
+    getOtherUser: (conv) => getOtherParticipant(conv || activeConversation),
+    showToast,
+  };
 
   // Reply State
   let pendingReplyTo = null;
