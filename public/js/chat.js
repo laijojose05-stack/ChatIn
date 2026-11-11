@@ -432,6 +432,11 @@ document.addEventListener('DOMContentLoaded', () => {
       activeChatWrapper.classList.add('d-flex');
     }
 
+    // Load pinned message and chat wallpaper for this conversation
+    if (typeof loadPinnedMessage === 'function') loadPinnedMessage(conv._id);
+    if (typeof applyWallpaper === 'function') applyWallpaper();
+    if (charCounter && messageInput) charCounter.textContent = messageInput.value.length;
+
     // Update Header
     const isGrp = isGroupConv(conv);
     const otherUser = getOtherParticipant(conv);
@@ -510,6 +515,115 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Human-readable date separator ("Today", "Yesterday", "Mon, May 12")
+  function formatDateSeparator(dateInput) {
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return '';
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    const isSameDay = (d1, d2) =>
+      d1.getFullYear() === d2.getFullYear() &&
+      d1.getMonth() === d2.getMonth() &&
+      d1.getDate() === d2.getDate();
+
+    if (isSameDay(d, today)) return 'Today';
+    if (isSameDay(d, yesterday)) return 'Yesterday';
+
+    return d.toLocaleDateString(undefined, {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: d.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
+    });
+  }
+
+  // Safe Rich Text Formatter (Code Blocks with Copy Button, Inline Code, WhatsApp Bold/Italic/Strike, Quotes, URLs)
+  function formatRichMessage(rawText) {
+    if (!rawText) return '';
+    let text = escapeHtml(rawText);
+    const codeBlocks = [];
+    const inlineCodes = [];
+
+    // 1. Code blocks ```(lang)\n(code)```
+    text = text.replace(/```(?:([a-zA-Z0-9_+-]+)?\n)?([\s\S]*?)```/g, (match, lang, code) => {
+      const idx = codeBlocks.length;
+      const cleanLang = (lang || 'code').trim();
+      const cleanCode = code ? code.replace(/^\n+|\n+$/g, '') : '';
+      codeBlocks.push(
+        `<div class="code-block-container">` +
+          `<div class="code-block-header">` +
+            `<span>${escapeHtml(cleanLang)}</span>` +
+            `<button type="button" class="code-copy-btn" onclick="window.copyCodeSnippet(this)">` +
+              `<i class="bi bi-clipboard me-1"></i>Copy` +
+            `</button>` +
+          `</div>` +
+          `<pre><code>${cleanCode}</code></pre>` +
+        `</div>`
+      );
+      return `___CODE_BLOCK_${idx}___`;
+    });
+
+    // 2. Inline code `code`
+    text = text.replace(/`([^`\n]+)`/g, (match, code) => {
+      const idx = inlineCodes.length;
+      inlineCodes.push(`<code class="inline-code">${code}</code>`);
+      return `___INLINE_CODE_${idx}___`;
+    });
+
+    // 3. Blockquotes: lines starting with &gt;
+    text = text.replace(/(?:^|\n)&gt;\s*([^\n]+)/g, (match, quote) => {
+      return `<blockquote>${quote}</blockquote>`;
+    });
+
+    // 4. Auto-link URLs (excluding trailing punctuation)
+    text = text.replace(/(https?:\/\/[^\s<]+)/g, (url) => {
+      return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="chat-link">${url}</a>`;
+    });
+
+    // 5. WhatsApp Markdown: Bold *text*
+    text = text.replace(/(^|[\s.,!?;:(])\*([^*\n\r]+)\*(?=$|[\s.,!?;:)]|\b)/g, '$1<b>$2</b>');
+
+    // 6. WhatsApp Markdown: Italic _text_
+    text = text.replace(/(^|[\s.,!?;:(])_([^_\n\r]+)_(?=$|[\s.,!?;:)]|\b)/g, '$1<i>$2</i>');
+
+    // 7. WhatsApp Markdown: Strikethrough ~text~
+    text = text.replace(/(^|[\s.,!?;:(])~([^~\n\r]+)~(?=$|[\s.,!?;:)]|\b)/g, '$1<s>$2</s>');
+
+    // 8. Newlines to <br>
+    text = text.replace(/\n/g, '<br>');
+
+    // 9. Restore Placeholders
+    inlineCodes.forEach((codeHtml, idx) => {
+      text = text.replace(`___INLINE_CODE_${idx}___`, codeHtml);
+    });
+    codeBlocks.forEach((blockHtml, idx) => {
+      text = text.replace(`___CODE_BLOCK_${idx}___`, blockHtml);
+    });
+
+    return text;
+  }
+
+  // Copy code snippet helper
+  window.copyCodeSnippet = async (btn) => {
+    try {
+      const pre = btn.closest('.code-block-container')?.querySelector('pre code');
+      if (!pre) return;
+      const text = pre.innerText || pre.textContent;
+      await navigator.clipboard.writeText(text);
+      const originalHtml = btn.innerHTML;
+      btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.innerHTML = originalHtml;
+        btn.classList.remove('copied');
+      }, 2000);
+    } catch (e) {
+      showToast('Copied code snippet');
+    }
+  };
+
   function renderMessages(messages) {
     if (!messagesStream) return;
     messagesStream.innerHTML = '';
@@ -524,8 +638,18 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    let lastDateStr = null;
     messages.forEach((msg) => {
-      appendMessageToView(msg);
+      const msgDate = new Date(msg.createdAt || Date.now());
+      const dateStr = msgDate.toDateString();
+      if (dateStr !== lastDateStr) {
+        lastDateStr = dateStr;
+        const sep = document.createElement('div');
+        sep.className = 'chat-date-separator';
+        sep.innerHTML = `<span class="date-badge">${formatDateSeparator(msg.createdAt || Date.now())}</span>`;
+        messagesStream.appendChild(sep);
+      }
+      appendMessageToView(msg, false);
     });
     scrollToBottom();
   }
@@ -751,6 +875,327 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.innerHTML = '<i class="bi bi-play-fill fs-5"></i>';
     };
   };
+
+  // ==========================================================================
+  // Starred Messages Engine (Saved to Local Storage & Visual Star Badge)
+  // ==========================================================================
+  function getStarredMessages() {
+    try {
+      const raw = localStorage.getItem('chatin_starred_messages');
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch (e) {
+      return new Set();
+    }
+  }
+
+  function isMessageStarred(msgId) {
+    if (!msgId) return false;
+    return getStarredMessages().has(msgId.toString());
+  }
+
+  window.toggleStarMessage = (msgId) => {
+    if (!msgId) return;
+    const idStr = msgId.toString();
+    const starred = getStarredMessages();
+    let isNowStarred = false;
+
+    if (starred.has(idStr)) {
+      starred.delete(idStr);
+      showToast('Message unstarred');
+    } else {
+      starred.add(idStr);
+      isNowStarred = true;
+      showToast('Message starred ⭐');
+    }
+
+    try {
+      localStorage.setItem('chatin_starred_messages', JSON.stringify([...starred]));
+    } catch (e) {}
+
+    // Update DOM in active stream
+    const row = document.querySelector(`.message-row[data-id="${msgId}"]`);
+    if (row) {
+      const meta = row.querySelector('.msg-meta');
+      if (meta) {
+        let starBadge = meta.querySelector('.msg-star-badge');
+        if (isNowStarred) {
+          if (!starBadge) {
+            starBadge = document.createElement('i');
+            starBadge.className = 'bi bi-star-fill text-warning extra-small ms-1 msg-star-badge';
+            starBadge.title = 'Starred message';
+            meta.appendChild(starBadge);
+          }
+        } else if (starBadge) {
+          starBadge.remove();
+        }
+      }
+      const starActionBtn = row.querySelector('.action-icon-btn[title="Star message"]');
+      if (starActionBtn) {
+        starActionBtn.classList.toggle('text-warning', isNowStarred);
+        const icon = starActionBtn.querySelector('i');
+        if (icon) icon.className = `bi bi-star${isNowStarred ? '-fill' : ''}`;
+      }
+    }
+  };
+
+  // ==========================================================================
+  // Pinned Message Engine (Pinned Banner, Jump-to-Message & Unpin)
+  // ==========================================================================
+  const pinnedMessageBanner = document.getElementById('pinnedMessageBanner');
+  const pinnedMessageTrigger = document.getElementById('pinnedMessageTrigger');
+  const pinnedSenderName = document.getElementById('pinnedSenderName');
+  const pinnedSnippetText = document.getElementById('pinnedSnippetText');
+  const unpinMessageBtn = document.getElementById('unpinMessageBtn');
+
+  function loadPinnedMessage(convId) {
+    if (!pinnedMessageBanner || !convId) return;
+    try {
+      const raw = localStorage.getItem(`chatin_pinned_${convId}`);
+      if (!raw) {
+        pinnedMessageBanner.classList.add('d-none');
+        pinnedMessageBanner.classList.remove('d-flex');
+        return;
+      }
+      const pinned = JSON.parse(raw);
+      if (pinned && pinned.id) {
+        if (pinnedSenderName) pinnedSenderName.textContent = pinned.sender || 'Pinned Message';
+        if (pinnedSnippetText) pinnedSnippetText.textContent = pinned.text || 'Message attachment';
+        pinnedMessageBanner.dataset.pinnedId = pinned.id;
+        pinnedMessageBanner.classList.remove('d-none');
+        pinnedMessageBanner.classList.add('d-flex');
+      } else {
+        pinnedMessageBanner.classList.add('d-none');
+        pinnedMessageBanner.classList.remove('d-flex');
+      }
+    } catch (e) {
+      pinnedMessageBanner.classList.add('d-none');
+      pinnedMessageBanner.classList.remove('d-flex');
+    }
+  }
+
+  window.pinMessage = (msgId, sender, text) => {
+    if (!activeConversation || !msgId) return;
+    const cleanSnippet = (text || 'Message attachment').replace(/[\r\n]+/g, ' ').substring(0, 100);
+    const pinnedData = {
+      id: msgId,
+      sender: sender || 'Pinned Message',
+      text: cleanSnippet,
+      pinnedAt: Date.now(),
+    };
+
+    try {
+      localStorage.setItem(`chatin_pinned_${activeConversation._id}`, JSON.stringify(pinnedData));
+    } catch (e) {}
+
+    loadPinnedMessage(activeConversation._id);
+    showToast('Message pinned to top 📌');
+  };
+
+  window.unpinMessage = () => {
+    if (!activeConversation) return;
+    try {
+      localStorage.removeItem(`chatin_pinned_${activeConversation._id}`);
+    } catch (e) {}
+    if (pinnedMessageBanner) {
+      pinnedMessageBanner.classList.add('d-none');
+      pinnedMessageBanner.classList.remove('d-flex');
+    }
+    showToast('Message unpinned');
+  };
+
+  if (unpinMessageBtn) {
+    unpinMessageBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      window.unpinMessage();
+    });
+  }
+
+  if (pinnedMessageTrigger) {
+    pinnedMessageTrigger.addEventListener('click', () => {
+      const pinnedId = pinnedMessageBanner?.dataset.pinnedId;
+      if (pinnedId) {
+        window.scrollToMessage(pinnedId);
+      }
+    });
+  }
+
+  // ==========================================================================
+  // Quick Text Formatting Toolbar & Character Counter
+  // ==========================================================================
+  const formatToggleBtn = document.getElementById('formatToggleBtn');
+  const formattingToolbar = document.getElementById('formattingToolbar');
+  const charCounter = document.getElementById('charCounter');
+
+  if (formatToggleBtn && formattingToolbar) {
+    formatToggleBtn.addEventListener('click', () => {
+      const isHidden = formattingToolbar.classList.contains('d-none');
+      if (isHidden) {
+        formattingToolbar.classList.remove('d-none');
+        formattingToolbar.classList.add('d-flex');
+        formatToggleBtn.classList.add('text-primary');
+        formatToggleBtn.classList.remove('text-muted');
+      } else {
+        formattingToolbar.classList.add('d-none');
+        formattingToolbar.classList.remove('d-flex');
+        formatToggleBtn.classList.remove('text-primary');
+        formatToggleBtn.classList.add('text-muted');
+      }
+    });
+
+    document.querySelectorAll('.fmt-btn[data-fmt]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (!messageInput) return;
+        const fmt = btn.dataset.fmt;
+        const start = messageInput.selectionStart || 0;
+        const end = messageInput.selectionEnd || 0;
+        const val = messageInput.value;
+        const selected = val.substring(start, end);
+
+        let before = '';
+        let after = '';
+        let placeholder = '';
+
+        switch (fmt) {
+          case 'bold':
+            before = '*';
+            after = '*';
+            placeholder = 'bold';
+            break;
+          case 'italic':
+            before = '_';
+            after = '_';
+            placeholder = 'italic';
+            break;
+          case 'strike':
+            before = '~';
+            after = '~';
+            placeholder = 'strike';
+            break;
+          case 'code':
+            before = '`';
+            after = '`';
+            placeholder = 'code';
+            break;
+          case 'codeblock':
+            before = '```\n';
+            after = '\n```';
+            placeholder = 'code block';
+            break;
+          case 'quote':
+            before = '> ';
+            after = '';
+            placeholder = 'quote';
+            break;
+          case 'bullet':
+            before = '• ';
+            after = '';
+            placeholder = 'bullet item';
+            break;
+        }
+
+        const insertText = selected || placeholder;
+        const replacement = before + insertText + after;
+        messageInput.value = val.substring(0, start) + replacement + val.substring(end);
+        messageInput.focus();
+        messageInput.setSelectionRange(start + before.length, start + before.length + insertText.length);
+        updateCharCounter();
+      });
+    });
+  }
+
+  function updateCharCounter() {
+    if (charCounter && messageInput) {
+      charCounter.textContent = messageInput.value.length;
+    }
+  }
+
+  if (messageInput) {
+    messageInput.addEventListener('input', updateCharCounter);
+  }
+
+  // ==========================================================================
+  // Chat Wallpaper Customizer (Doodle, Emerald, Obsidian, Midnight)
+  // ==========================================================================
+  const wallpaperChips = document.getElementById('wallpaperChips');
+  function applyWallpaper(wallpaperName) {
+    if (!messagesViewport) return;
+    const name = wallpaperName || localStorage.getItem('chatin_wallpaper') || 'doodle';
+    messagesViewport.classList.remove('wallpaper-doodle', 'wallpaper-emerald', 'wallpaper-obsidian', 'wallpaper-midnight');
+    messagesViewport.classList.add(`wallpaper-${name}`);
+
+    if (wallpaperChips) {
+      wallpaperChips.querySelectorAll('button[data-wallpaper]').forEach((b) => {
+        b.classList.toggle('active', b.dataset.wallpaper === name);
+      });
+    }
+  }
+
+  if (wallpaperChips) {
+    wallpaperChips.querySelectorAll('button[data-wallpaper]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const wp = btn.dataset.wallpaper;
+        try {
+          localStorage.setItem('chatin_wallpaper', wp);
+        } catch (e) {}
+        applyWallpaper(wp);
+        showToast(`Wallpaper set to ${wp.charAt(0).toUpperCase() + wp.slice(1)}`);
+      });
+    });
+  }
+  applyWallpaper();
+
+  // ==========================================================================
+  // Export Chat History Handler (.txt Download)
+  // ==========================================================================
+  const contactExportChatBtn = document.getElementById('contactExportChatBtn');
+  if (contactExportChatBtn) {
+    contactExportChatBtn.addEventListener('click', () => {
+      if (!activeConversation) {
+        showToast('Open a conversation first');
+        return;
+      }
+      const isGrp = isGroupConv(activeConversation);
+      const otherUser = getOtherParticipant(activeConversation);
+      const title = isGrp ? (activeConversation.groupName || 'Group') : (otherUser ? otherUser.username : 'Chat');
+
+      const rows = document.querySelectorAll('#messagesStream .message-row');
+      if (rows.length === 0) {
+        showToast('No messages to export');
+        return;
+      }
+
+      let exportText = `====================================================\n`;
+      exportText += ` ChatIn Conversation Export: ${title}\n`;
+      exportText += ` Exported on: ${new Date().toLocaleString()}\n`;
+      exportText += ` Total Messages: ${rows.length}\n`;
+      exportText += `====================================================\n\n`;
+
+      rows.forEach((row) => {
+        const isMine = row.classList.contains('sent');
+        const senderName = isMine ? 'You' : (row.querySelector('.msg-sender-name')?.textContent || title);
+        const time = row.querySelector('.msg-meta span')?.textContent || '';
+        const msgText = row.querySelector('.msg-text')?.innerText || '';
+        const hasMedia = row.querySelector('.msg-img-attachment') ? '[Image]' :
+                         row.querySelector('.audio-msg-player') ? '[Voice Note]' :
+                         row.querySelector('.msg-file-attachment') ? '[File Attachment]' : '';
+        const content = [msgText, hasMedia].filter(Boolean).join(' ');
+        exportText += `[${time}] ${senderName}: ${content}\n`;
+      });
+
+      exportText += `\n----------------------------------------------------\nEnd of export (ChatIn Web)\n`;
+
+      const blob = new Blob([exportText], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ChatIn_${title.replace(/[^a-zA-Z0-9_-]/g, '_')}_${Date.now()}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Chat history exported successfully! 📁');
+    });
+  }
 
   // ==========================================================================
   // In-Chat Message Search Engine
@@ -1297,6 +1742,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  const sheetStarBtn = document.getElementById('sheetStarBtn');
+  if (sheetStarBtn) {
+    sheetStarBtn.addEventListener('click', () => {
+      if (currentSheetMessage && currentSheetMessage.id) {
+        window.toggleStarMessage(currentSheetMessage.id);
+      }
+      closeMobileMessageActionSheet();
+    });
+  }
+
+  const sheetPinBtn = document.getElementById('sheetPinBtn');
+  if (sheetPinBtn) {
+    sheetPinBtn.addEventListener('click', () => {
+      if (currentSheetMessage && currentSheetMessage.id) {
+        window.pinMessage(currentSheetMessage.id, currentSheetMessage.sender, currentSheetMessage.text);
+      }
+      closeMobileMessageActionSheet();
+    });
+  }
+
   if (sheetMediaBtn) {
     sheetMediaBtn.addEventListener('click', () => {
       if (currentSheetMessage && currentSheetMessage.mediaUrl) {
@@ -1440,12 +1905,26 @@ document.addEventListener('DOMContentLoaded', () => {
     bubble.addEventListener('touchcancel', handleTouchEnd);
   }
 
-  function appendMessageToView(msg) {
+  function appendMessageToView(msg, checkDate = true) {
     if (!messagesStream) return;
 
     // Deduplication check: if message already rendered, don't append again
     if (msg._id && document.querySelector(`.message-row[data-id="${msg._id}"]`)) {
       return;
+    }
+
+    if (checkDate) {
+      const msgDate = new Date(msg.createdAt || Date.now());
+      const msgDateStr = msgDate.toDateString();
+      const lastRow = messagesStream.querySelector('.message-row:last-of-type');
+      const lastTime = lastRow ? lastRow.dataset.time : null;
+      const lastDateStr = lastTime ? new Date(lastTime).toDateString() : null;
+      if (!lastDateStr || lastDateStr !== msgDateStr) {
+        const sep = document.createElement('div');
+        sep.className = 'chat-date-separator';
+        sep.innerHTML = `<span class="date-badge">${formatDateSeparator(msg.createdAt || Date.now())}</span>`;
+        messagesStream.appendChild(sep);
+      }
     }
 
     const senderId = msg.senderId?._id || msg.senderId || msg.sender?._id || msg.sender;
@@ -1509,6 +1988,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const isDeleted = Boolean(msg.deletedAt || msg.isDeleted);
     const contentText = isDeleted ? 'This message was deleted' : (msg.content || '');
+    const formattedHtml = isDeleted ? 'This message was deleted' : formatRichMessage(contentText);
+
+    // Starred status
+    const isStarred = typeof isMessageStarred === 'function' ? isMessageStarred(msg._id) : false;
+    const starHtml = isStarred
+      ? `<i class="bi bi-star-fill text-warning extra-small ms-1 msg-star-badge" title="Starred message"></i>`
+      : '';
 
     // Quoted Reply Preview
     let replyQuoteHtml = '';
@@ -1541,7 +2027,7 @@ document.addEventListener('DOMContentLoaded', () => {
       reactionsHtml = `<div class="msg-reactions-row" id="reactions-${msg._id}">${pills}</div>`;
     }
 
-    // Action Bar (Quick Reactions, Reply, Copy, Delete)
+    // Action Bar (Quick Reactions, Star, Pin, Reply, Copy, Delete)
     let actionsHtml = '';
     if (!isDeleted && msg._id && !msg._id.toString().startsWith('temp_')) {
       const escapedCleanText = escapeHtml((contentText || '').replace(/['"]/g, ''));
@@ -1552,6 +2038,12 @@ document.addEventListener('DOMContentLoaded', () => {
           <button type="button" class="reaction-quick-btn" onclick="window.toggleReaction('${msg._id}', '❤️')" title="Heart">❤️</button>
           <button type="button" class="reaction-quick-btn" onclick="window.toggleReaction('${msg._id}', '😂')" title="Laugh">😂</button>
           <button type="button" class="reaction-quick-btn" onclick="window.toggleReaction('${msg._id}', '🔥')" title="Fire">🔥</button>
+          <button type="button" class="action-icon-btn ${isStarred ? 'text-warning' : ''}" onclick="window.toggleStarMessage('${msg._id}')" title="Star message">
+            <i class="bi bi-star${isStarred ? '-fill' : ''}"></i>
+          </button>
+          <button type="button" class="action-icon-btn" onclick="window.pinMessage('${msg._id}', '${escapedSender}', '${escapedCleanText}')" title="Pin message to top">
+            <i class="bi bi-pin-angle"></i>
+          </button>
           <button type="button" class="action-icon-btn" onclick="window.startReplyToMessage('${msg._id}', '${escapedSender}', '${escapedCleanText}')" title="Reply">
             <i class="bi bi-reply-fill"></i>
           </button>
@@ -1574,15 +2066,17 @@ document.addEventListener('DOMContentLoaded', () => {
           ${replyQuoteHtml}
           ${senderName ? `<div class="msg-sender-name">${escapeHtml(senderName)}</div>` : ''}
           ${!isDeleted ? attachmentHtml : ''}
-          <div class="msg-text ${isDeleted ? 'fst-italic' : ''}">${escapeHtml(contentText)}</div>
+          <div class="msg-text ${isDeleted ? 'fst-italic' : ''}">${formattedHtml}</div>
           ${reactionsHtml}
           <div class="msg-meta">
             <span>${time}</span>
+            ${starHtml}
             ${tickHtml}
           </div>
         </div>
         ${actionsHtml}
       </div>
+    `;
     `;
 
     // Attach mobile swipe-to-reply and press-and-hold options

@@ -119,6 +119,20 @@
         </div>
       </header>
 
+      <!-- Pinned Message Banner -->
+      <div class="pinned-message-banner px-3 py-2 border-bottom d-none align-items-center justify-content-between" id="pinnedMessageBanner">
+        <div class="d-flex align-items-center gap-2 overflow-hidden flex-grow-1 cursor-pointer" id="pinnedMessageTrigger" title="Jump to pinned message">
+          <i class="bi bi-pin-angle-fill text-warning flex-shrink-0 fs-6"></i>
+          <div class="overflow-hidden min-w-0">
+            <div class="extra-small fw-bold text-warning text-truncate" id="pinnedSenderName">Pinned Message</div>
+            <div class="extra-small text-muted text-truncate" id="pinnedSnippetText">Message text...</div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-icon text-muted p-1 ms-2" id="unpinMessageBtn" title="Unpin message">
+          <i class="bi bi-x-lg extra-small"></i>
+        </button>
+      </div>
+
       <!-- In-Chat Search Bar -->
       <div class="in-chat-search-bar px-3 py-2 border-bottom d-none align-items-center justify-content-between bg-body-tertiary" id="inChatSearchBar">
         <div class="d-flex align-items-center gap-2 flex-grow-1 me-2 overflow-hidden min-w-0">
@@ -195,9 +209,25 @@
           <button class="btn-close btn-close-white small" id="removeAttachmentBtn" aria-label="Remove attachment"></button>
         </div>
 
+        <!-- Quick Text Formatting Bar -->
+        <div class="formatting-toolbar d-none align-items-center gap-1 mb-2 px-2 py-1 rounded-pill bg-body-tertiary border" id="formattingToolbar">
+          <button type="button" class="fmt-btn" data-fmt="bold" title="Bold (*text*)"><b>B</b></button>
+          <button type="button" class="fmt-btn" data-fmt="italic" title="Italic (_text_)"><i>I</i></button>
+          <button type="button" class="fmt-btn" data-fmt="strike" title="Strikethrough (~text~)"><s>S</s></button>
+          <button type="button" class="fmt-btn" data-fmt="code" title="Inline Code (`code`)"><i class="bi bi-code"></i></button>
+          <button type="button" class="fmt-btn" data-fmt="codeblock" title="Code Block (```)"><b>{ }</b></button>
+          <button type="button" class="fmt-btn" data-fmt="quote" title="Quote (> quote)"><i class="bi bi-quote"></i></button>
+          <button type="button" class="fmt-btn" data-fmt="bullet" title="Bullet List (• item)"><i class="bi bi-list-ul"></i></button>
+          <span class="ms-auto extra-small text-muted font-monospace me-2" id="charCounter">0</span>
+        </div>
+
         <form id="messageForm" class="d-flex align-items-center gap-2">
           <button type="button" class="btn btn-icon" id="emojiToggleBtn" title="Add Emoji">
             <i class="bi bi-emoji-smile"></i>
+          </button>
+
+          <button type="button" class="btn btn-icon text-muted" id="formatToggleBtn" title="Format Text">
+            <i class="bi bi-type-bold"></i>
           </button>
 
           <label class="btn btn-icon mb-0" title="Attach file or photo">
@@ -321,8 +351,22 @@
           </div>
         </div>
 
+        <!-- Chat Wallpaper Switcher -->
+        <div class="text-start mb-3 p-3 rounded-3 bg-body-tertiary border">
+          <div class="extra-small text-muted fw-bold text-uppercase mb-2">Chat Wallpaper</div>
+          <div class="d-flex align-items-center gap-2" id="wallpaperChips">
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill extra-small active" data-wallpaper="doodle">WhatsApp Doodle</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill extra-small" data-wallpaper="emerald">Emerald</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill extra-small" data-wallpaper="obsidian">Obsidian</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill extra-small" data-wallpaper="midnight">Midnight</button>
+          </div>
+        </div>
+
         <!-- Action Buttons -->
         <div class="d-flex flex-column gap-2 pt-2 border-top">
+          <button type="button" class="btn btn-outline-secondary rounded-3 py-2 d-flex align-items-center justify-content-center gap-2" id="contactExportChatBtn">
+            <i class="bi bi-download"></i> Export Chat History (.txt)
+          </button>
           <button type="button" class="btn btn-outline-secondary rounded-3 py-2 d-flex align-items-center justify-content-center gap-2" id="contactCopyUsernameBtn">
             <i class="bi bi-clipboard"></i> Copy Username
           </button>
@@ -853,6 +897,14 @@
       <button type="button" class="mobile-sheet-action-item" id="sheetCopyBtn">
         <i class="bi bi-clipboard fs-5"></i>
         <span>Copy Message Text</span>
+      </button>
+      <button type="button" class="mobile-sheet-action-item" id="sheetStarBtn">
+        <i class="bi bi-star text-warning fs-5"></i>
+        <span>Star Message</span>
+      </button>
+      <button type="button" class="mobile-sheet-action-item" id="sheetPinBtn">
+        <i class="bi bi-pin-angle text-info fs-5"></i>
+        <span>Pin to Top</span>
       </button>
       <button type="button" class="mobile-sheet-action-item d-none" id="sheetMediaBtn">
         <i class="bi bi-box-arrow-up-right text-info fs-5"></i>

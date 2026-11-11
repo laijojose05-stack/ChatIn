@@ -1198,3 +1198,192 @@
     right: 1rem;
   }
 }
+
+/* ==========================================================================
+   7. ADVANCED CHAT WINDOW FEATURES: PINNED BANNER, FORMATTING, CODE BLOCKS, DATES
+   ========================================================================== */
+
+/* Pinned Message Banner */
+.pinned-message-banner {
+  background: var(--bg-floating);
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  border-bottom: 1px solid var(--border-color);
+  animation: bannerSlideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 9;
+}
+
+@keyframes bannerSlideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Quick Formatting Toolbar */
+.formatting-toolbar {
+  animation: fmtFadeIn 0.15s ease;
+}
+
+@keyframes fmtFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fmt-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.fmt-btn:hover {
+  background: var(--bg-card-hover);
+  color: var(--accent-primary);
+  transform: translateY(-1px);
+}
+
+.fmt-btn:active {
+  transform: scale(0.9);
+}
+
+/* WhatsApp Date Separator */
+.chat-date-separator {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  margin: 0.75rem 0;
+}
+
+.date-separator-pill,
+.date-badge {
+  background: var(--bg-floating) !important;
+  color: var(--text-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+  backdrop-filter: var(--glass-filter);
+  -webkit-backdrop-filter: var(--glass-filter);
+  font-size: 0.74rem !important;
+  font-weight: 600 !important;
+  padding: 0.25rem 0.85rem !important;
+  border-radius: var(--radius-pill) !important;
+  box-shadow: var(--shadow-sm);
+  user-select: none;
+  display: inline-block;
+}
+
+/* Code Blocks in Messages */
+.chat-code-block,
+.code-block-container {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  margin: 0.4rem 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+}
+
+.chat-code-header,
+.code-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.25rem 0.65rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.chat-code-copy-btn,
+.code-copy-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  cursor: pointer;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  transition: all var(--transition-fast);
+}
+
+.chat-code-copy-btn:hover,
+.code-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.chat-code-copy-btn.copied,
+.code-copy-btn.copied {
+  color: #10b981;
+}
+
+.chat-code-block pre,
+.code-block-container pre {
+  margin: 0;
+  padding: 0.65rem;
+  overflow-x: auto;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: #38bdf8;
+}
+
+.chat-inline-code,
+.inline-code {
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: #38bdf8;
+}
+
+.chat-quote-block,
+blockquote {
+  border-left: 3px solid var(--accent-primary);
+  background: rgba(0, 0, 0, 0.12);
+  padding: 0.25rem 0.6rem;
+  margin: 0.35rem 0;
+  border-radius: 4px;
+  font-style: italic;
+  font-size: 0.9em;
+  opacity: 0.92;
+}
+
+.chat-link {
+  color: #38bdf8 !important;
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.chat-link:hover {
+  color: #7dd3fc !important;
+}
+
+/* Starred Message Badge */
+.star-badge,
+.msg-star-badge {
+  color: #f59e0b;
+  font-size: 0.72rem;
+}
+
+/* Wallpapers */
+.messages-viewport.wallpaper-emerald {
+  background-color: #071914 !important;
+}
+.messages-viewport.wallpaper-obsidian {
+  background-color: #05070a !important;
+}
+.messages-viewport.wallpaper-midnight {
+  background-color: #0b1120 !important;
+}
+
