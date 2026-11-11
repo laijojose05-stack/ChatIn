@@ -5,7 +5,7 @@
 [![Express.js](https://img.shields.io/badge/Express.js-4.21-lightgrey.svg)](https://expressjs.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB_Atlas-8.10-forestgreen.svg)](https://www.mongodb.com/atlas)
 [![Bootstrap](https://img.shields.io/badge/Bootstrap-5.3.3-purple.svg)](https://getbootstrap.com/)
-[![Tests](https://img.shields.io/badge/Tests-12%2F12%20Passing-brightgreen.svg)](test.js)
+[![Tests](https://img.shields.io/badge/Tests-13%2F13%20Passing-brightgreen.svg)](test.js)
 
 **ChatIn** is a full-featured, real-time messaging application and team workspace built as a clean, single-directory Node.js application using Express, EJS, Socket.IO, WebRTC, and MongoDB Atlas. It features bidirectional sub-second messaging, peer-to-peer HD video & voice calling, multi-channel group hubs, anti-spam security, a Linear-inspired landing page, and a master-detail settings suite.
 

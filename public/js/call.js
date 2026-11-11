@@ -1,6 +1,6 @@
 /**
  * ChatIn WebRTC Real-Time Audio & Video Call Engine
- * High-performance, peer-to-peer audio & video calls with WebRTC and Socket.IO
+ * Hybrid WebSockets + REST API Polling Fallback (100% Vercel & Node compatible)
  */
 (function () {
   'use strict';
@@ -10,7 +10,7 @@
   let peerConnection = null;
   let localStream = null;
   let screenStream = null;
-  let currentCall = null; // { peer, callType, conversationId, isCaller, offer }
+  let currentCall = null; // { callId, peer, callType, conversationId, isCaller, offer }
   let pendingCandidates = [];
   let callTimerInterval = null;
   let callStartTime = null;
@@ -18,6 +18,9 @@
   let isCamOff = false;
   let isScreenSharing = false;
   let callTimeoutTimer = null;
+  let callSyncInterval = null;
+  let idlePollInterval = null;
+  let knownCandidateSignatures = new Set();
 
   // Web Audio Tone Synthesizer
   let audioCtx = null;
@@ -42,7 +45,6 @@
     }
   }
 
-  // Play Dialing Ringback Tone (calling peer)
   function playDialTone() {
     stopAudioTones();
     const ctx = getAudioContext();
@@ -76,7 +78,6 @@
     toneInterval = setInterval(playBeep, 3000);
   }
 
-  // Play Incoming Ringtone (someone is calling you)
   function playIncomingRingtone() {
     stopAudioTones();
     const ctx = getAudioContext();
@@ -110,7 +111,6 @@
     toneInterval = setInterval(playChimes, 2200);
   }
 
-  // Play End Call Tone
   function playEndTone() {
     stopAudioTones();
     const ctx = getAudioContext();
@@ -135,7 +135,7 @@
     } catch (e) {}
   }
 
-  // WebRTC Configuration
+  // WebRTC ICE Configuration
   const rtcConfig = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
@@ -145,10 +145,16 @@
     iceCandidatePoolSize: 10,
   };
 
-  // Helper to get initials
   function getInitials(name) {
     if (!name) return 'CI';
     return name.trim().substring(0, 2).toUpperCase();
+  }
+
+  function getAuthHeaders() {
+    const token = localStorage.getItem('chatin_token');
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return headers;
   }
 
   // DOM Elements Cache
@@ -207,16 +213,14 @@
     dom.btnEndMinimizedCall = document.getElementById('btnEndMinimizedCall');
   }
 
-  // Toast Helper
   function showCallToast(message) {
     if (typeof window.showToast === 'function') {
       window.showToast(message);
     } else {
-      console.log('Call Notification:', message);
+      console.log('Call Toast:', message);
     }
   }
 
-  // Duration Timer Helper
   function startCallTimer() {
     stopCallTimer();
     callStartTime = Date.now();
@@ -245,16 +249,24 @@
     if (dom.minimizedCallTimer) dom.minimizedCallTimer.textContent = '00:00';
   }
 
-  // WebRTC Cleanup
+  function stopCallSync() {
+    if (callSyncInterval) {
+      clearInterval(callSyncInterval);
+      callSyncInterval = null;
+    }
+  }
+
+  // Cleanup all call streams and connections
   function cleanupCall() {
     stopAudioTones();
     stopCallTimer();
+    stopCallSync();
+
     if (callTimeoutTimer) {
       clearTimeout(callTimeoutTimer);
       callTimeoutTimer = null;
     }
 
-    // Stop all media tracks
     if (localStream) {
       localStream.getTracks().forEach((track) => {
         try {
@@ -289,17 +301,16 @@
 
     currentCall = null;
     pendingCandidates = [];
+    knownCandidateSignatures.clear();
     isMicMuted = false;
     isCamOff = false;
     isScreenSharing = false;
 
-    // Reset UI Elements
     if (dom.incomingCallModal) dom.incomingCallModal.classList.add('d-none');
     if (dom.outgoingCallModal) dom.outgoingCallModal.classList.add('d-none');
     if (dom.activeCallModal) dom.activeCallModal.classList.add('d-none');
     if (dom.minimizedCallPill) dom.minimizedCallPill.classList.add('d-none');
 
-    // Reset control buttons state
     if (dom.callToggleMicBtn) {
       dom.callToggleMicBtn.classList.remove('off');
       if (dom.iconMic) dom.iconMic.className = 'bi bi-mic-fill fs-5';
@@ -315,40 +326,43 @@
     if (dom.localCamOffPlaceholder) dom.localCamOffPlaceholder.classList.add('d-none');
   }
 
-  // Create RTCPeerConnection and wire listeners
+  // Create RTCPeerConnection and wire handlers
   function setupPeerConnection(targetUserId, callType) {
     peerConnection = new RTCPeerConnection(rtcConfig);
 
-    // Add local tracks to peer connection
     if (localStream) {
       localStream.getTracks().forEach((track) => {
         peerConnection.addTrack(track, localStream);
       });
     }
 
-    // ICE Candidate handler
     peerConnection.onicecandidate = (event) => {
-      if (event.candidate && socketInstance && targetUserId) {
-        socketInstance.emit('call:ice_candidate', {
-          targetUserId,
-          candidate: event.candidate,
-        });
+      if (event.candidate) {
+        // Send via Socket.IO if connected
+        if (socketInstance && socketInstance.connected && targetUserId) {
+          socketInstance.emit('call:ice_candidate', {
+            targetUserId,
+            candidate: event.candidate,
+          });
+        }
+        // Also persist via REST for serverless environments (Vercel)
+        if (currentCall && currentCall.callId) {
+          fetch(`/api/calls/candidate/${currentCall.callId}`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ candidate: event.candidate }),
+          }).catch(() => {});
+        }
       }
     };
 
-    // Remote Track handler
     peerConnection.ontrack = (event) => {
       const [stream] = event.streams;
       if (!stream) return;
 
-      if (dom.remoteVideo) {
-        dom.remoteVideo.srcObject = stream;
-      }
-      if (dom.remoteAudio) {
-        dom.remoteAudio.srcObject = stream;
-      }
+      if (dom.remoteVideo) dom.remoteVideo.srcObject = stream;
+      if (dom.remoteAudio) dom.remoteAudio.srcObject = stream;
 
-      // Check tracks to toggle video vs audio view
       const hasVideo = stream.getVideoTracks().some((t) => t.enabled && t.readyState === 'live');
       if (callType === 'video' && hasVideo) {
         if (dom.remoteAudioPlaceholder) dom.remoteAudioPlaceholder.classList.add('d-none');
@@ -361,7 +375,6 @@
       }
     };
 
-    // Connection state changes
     peerConnection.onconnectionstatechange = () => {
       const state = peerConnection ? peerConnection.connectionState : 'closed';
       if (dom.callQualityBadge) {
@@ -377,18 +390,15 @@
         }
       }
 
-      if (state === 'disconnected' || state === 'failed' || state === 'closed') {
-        if (state === 'failed') {
-          showCallToast('Call connection failed');
-          cleanupCall();
-        }
+      if (state === 'failed') {
+        showCallToast('Call connection failed');
+        cleanupCall();
       }
     };
 
     return peerConnection;
   }
 
-  // Flush queued ICE candidates after remote description is set
   async function flushPendingCandidates() {
     if (!peerConnection || !peerConnection.remoteDescription) return;
     while (pendingCandidates.length > 0) {
@@ -396,9 +406,67 @@
       try {
         await peerConnection.addIceCandidate(new RTCIceCandidate(cand));
       } catch (e) {
-        console.warn('Error adding buffered ICE candidate:', e);
+        console.warn('Buffered candidate apply:', e);
       }
     }
+  }
+
+  // Active Call State Sync Loop (Polling fallback for serverless Vercel)
+  function startCallSync(callId) {
+    stopCallSync();
+    if (!callId) return;
+
+    callSyncInterval = setInterval(async () => {
+      if (!currentCall || currentCall.callId !== callId) {
+        stopCallSync();
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/calls/sync/${callId}?_t=${Date.now()}`, {
+          headers: getAuthHeaders(),
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!json.success || !json.data) return;
+
+        const data = json.data;
+
+        // 1. If we are caller and answer was submitted via REST
+        if (currentCall.isCaller && data.status === 'accepted' && data.answer) {
+          if (peerConnection && !peerConnection.remoteDescription) {
+            await handleCallAccepted({ answer: data.answer });
+          }
+        }
+
+        // 2. If call was rejected
+        if (data.status === 'rejected') {
+          handleCallRejected({ reason: data.rejectReason || 'declined' });
+          return;
+        }
+
+        // 3. If call was ended
+        if (data.status === 'ended') {
+          handleRemoteCallEnded();
+          return;
+        }
+
+        // 4. Ingest new ICE candidates
+        const candidates = currentCall.isCaller ? data.receiverCandidates : data.callerCandidates;
+        if (Array.isArray(candidates)) {
+          for (const cand of candidates) {
+            if (!cand || !cand.candidate) continue;
+            const sig = cand.candidate + (cand.sdpMid || '');
+            if (!knownCandidateSignatures.has(sig)) {
+              knownCandidateSignatures.add(sig);
+              await handleRemoteIceCandidate({ candidate: cand });
+            }
+          }
+        }
+      } catch (e) {
+        // network hiccup
+      }
+    }, 1200);
   }
 
   // Initiate an Outgoing Call (Audio or Video)
@@ -422,7 +490,6 @@
     const peerName = targetUser.username || 'Contact';
 
     try {
-      // 1. Get user media
       const constraints = {
         audio: {
           echoCancellation: true,
@@ -442,18 +509,16 @@
       localStream = await navigator.mediaDevices.getUserMedia(constraints);
       if (dom.localVideo) dom.localVideo.srcObject = localStream;
 
-      // 2. Setup RTCPeerConnection
       setupPeerConnection(peerId, callType);
 
-      // 3. Create WebRTC Offer
       const offer = await peerConnection.createOffer({
         offerToReceiveAudio: true,
         offerToReceiveVideo: callType === 'video',
       });
       await peerConnection.setLocalDescription(offer);
 
-      // 4. Save call state
       currentCall = {
+        callId: null,
         peer: targetUser,
         callType,
         conversationId,
@@ -461,7 +526,6 @@
         offer,
       };
 
-      // 5. Update UI for Outgoing Call Dialog
       if (dom.outgoingPeerName) dom.outgoingPeerName.textContent = peerName;
       if (dom.outgoingPeerAvatar) {
         dom.outgoingPeerAvatar.textContent = getInitials(peerName);
@@ -474,18 +538,41 @@
       }
       if (dom.outgoingCallModal) dom.outgoingCallModal.classList.remove('d-none');
 
-      // 6. Play dial tone
       playDialTone();
 
-      // 7. Emit initiate event via Socket.IO
-      socketInstance.emit('call:initiate', {
-        targetUserId: peerId,
-        conversationId,
-        callType,
-        offer,
-      });
+      // Emit via Socket.IO if connected
+      if (socketInstance && socketInstance.connected) {
+        socketInstance.emit('call:initiate', {
+          targetUserId: peerId,
+          conversationId,
+          callType,
+          offer,
+        });
+      }
 
-      // 8. 45s Timeout if peer doesn't answer
+      // Also persist to REST backend (Guarantees Vercel serverless works!)
+      try {
+        const res = await fetch('/api/calls/initiate', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            targetUserId: peerId,
+            conversationId,
+            callType,
+            offer,
+          }),
+        });
+        const resData = await res.json();
+        if (resData.success && resData.data && resData.data.callId) {
+          if (currentCall) {
+            currentCall.callId = resData.data.callId;
+            startCallSync(resData.data.callId);
+          }
+        }
+      } catch (err) {
+        console.warn('REST call initiation notice:', err.message);
+      }
+
       callTimeoutTimer = setTimeout(() => {
         if (currentCall && currentCall.isCaller) {
           showCallToast('No answer from ' + peerName);
@@ -503,32 +590,47 @@
     }
   }
 
-  // Cancel Outgoing Call
   function cancelOutgoingCall() {
-    if (currentCall && currentCall.peer) {
-      socketInstance.emit('call:end', {
-        targetUserId: currentCall.peer._id,
-      });
+    if (currentCall) {
+      if (socketInstance && socketInstance.connected && currentCall.peer) {
+        socketInstance.emit('call:end', {
+          targetUserId: currentCall.peer._id,
+        });
+      }
+      if (currentCall.callId) {
+        fetch(`/api/calls/end/${currentCall.callId}`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+        }).catch(() => {});
+      }
     }
     playEndTone();
     cleanupCall();
   }
 
-  // Incoming Call Handler
   function handleIncomingCall(data) {
-    const { caller, callType, offer, conversationId } = data || {};
+    const { callId, caller, callType, offer, conversationId } = data || {};
     if (!caller) return;
 
-    // If currently in a call, automatically reply busy
     if (currentCall) {
-      socketInstance.emit('call:reject', {
-        callerId: caller._id,
-        reason: 'busy',
-      });
+      if (socketInstance && socketInstance.connected) {
+        socketInstance.emit('call:reject', {
+          callerId: caller._id,
+          reason: 'busy',
+        });
+      }
+      if (callId) {
+        fetch(`/api/calls/reject/${callId}`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ reason: 'busy' }),
+        }).catch(() => {});
+      }
       return;
     }
 
     currentCall = {
+      callId: callId || null,
       peer: caller,
       callType: callType || 'video',
       conversationId,
@@ -536,7 +638,6 @@
       offer,
     };
 
-    // Update Incoming Call UI
     const callerName = caller.username || 'Someone';
     if (dom.incomingCallerName) dom.incomingCallerName.textContent = callerName;
     if (dom.incomingCallerAvatar) {
@@ -552,22 +653,19 @@
           : '<i class="bi bi-telephone me-1"></i> Incoming Voice Call...';
     }
 
-    // Play ringtone and show dialog
     playIncomingRingtone();
     if (dom.incomingCallModal) dom.incomingCallModal.classList.remove('d-none');
   }
 
-  // Accept Incoming Call
   async function acceptIncomingCall() {
     if (!currentCall || !currentCall.peer || !currentCall.offer) return;
-    const { peer, callType, offer } = currentCall;
+    const { callId, peer, callType, offer } = currentCall;
     const peerId = peer._id.toString();
 
     stopAudioTones();
     if (dom.incomingCallModal) dom.incomingCallModal.classList.add('d-none');
 
     try {
-      // 1. Get user media
       const constraints = {
         audio: {
           echoCancellation: true,
@@ -587,25 +685,31 @@
       localStream = await navigator.mediaDevices.getUserMedia(constraints);
       if (dom.localVideo) dom.localVideo.srcObject = localStream;
 
-      // 2. Setup RTCPeerConnection
       setupPeerConnection(peerId, callType);
 
-      // 3. Set Remote Description from Caller's Offer
       await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
       await flushPendingCandidates();
 
-      // 4. Create Answer
       const answer = await peerConnection.createAnswer();
       await peerConnection.setLocalDescription(answer);
 
-      // 5. Emit call:accept
-      socketInstance.emit('call:accept', {
-        callerId: peerId,
-        answer,
-        callType,
-      });
+      if (socketInstance && socketInstance.connected) {
+        socketInstance.emit('call:accept', {
+          callerId: peerId,
+          answer,
+          callType,
+        });
+      }
 
-      // 6. Transition to Active Call View
+      if (callId) {
+        fetch(`/api/calls/accept/${callId}`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ answer }),
+        }).catch(() => {});
+        startCallSync(callId);
+      }
+
       showActiveCallView(peer, callType);
       startCallTimer();
     } catch (err) {
@@ -619,19 +723,26 @@
     }
   }
 
-  // Decline Incoming Call
   function declineIncomingCall() {
-    if (currentCall && currentCall.peer) {
-      socketInstance.emit('call:reject', {
-        callerId: currentCall.peer._id,
-        reason: 'declined',
-      });
+    if (currentCall) {
+      if (socketInstance && socketInstance.connected && currentCall.peer) {
+        socketInstance.emit('call:reject', {
+          callerId: currentCall.peer._id,
+          reason: 'declined',
+        });
+      }
+      if (currentCall.callId) {
+        fetch(`/api/calls/reject/${currentCall.callId}`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ reason: 'declined' }),
+        }).catch(() => {});
+      }
     }
     playEndTone();
     cleanupCall();
   }
 
-  // Handle Call Accepted by Callee (Caller receives this)
   async function handleCallAccepted(data) {
     if (!currentCall || !peerConnection) return;
     stopAudioTones();
@@ -643,8 +754,10 @@
     if (dom.outgoingCallModal) dom.outgoingCallModal.classList.add('d-none');
 
     try {
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-      await flushPendingCandidates();
+      if (!peerConnection.remoteDescription && data.answer) {
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+        await flushPendingCandidates();
+      }
 
       showActiveCallView(currentCall.peer, currentCall.callType);
       startCallTimer();
@@ -655,7 +768,6 @@
     }
   }
 
-  // Handle Call Rejected
   function handleCallRejected(data) {
     stopAudioTones();
     if (callTimeoutTimer) {
@@ -672,28 +784,25 @@
     cleanupCall();
   }
 
-  // Handle Remote ICE Candidate
   async function handleRemoteIceCandidate(data) {
     if (!data.candidate) return;
     if (peerConnection && peerConnection.remoteDescription) {
       try {
         await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
       } catch (e) {
-        console.warn('Error adding received ICE candidate:', e);
+        console.warn('Error adding ICE candidate:', e);
       }
     } else {
       pendingCandidates.push(data.candidate);
     }
   }
 
-  // Handle Remote Call Ended
   function handleRemoteCallEnded() {
     showCallToast('Call ended');
     playEndTone();
     cleanupCall();
   }
 
-  // Display Active In-Call View
   function showActiveCallView(peer, callType) {
     const peerName = peer?.username || 'Contact';
 
@@ -708,7 +817,6 @@
       }
     }
 
-    // Configure Video vs Audio Mode
     if (callType === 'video') {
       if (dom.remoteVideo) dom.remoteVideo.classList.remove('d-none');
       if (dom.localVideoPip) dom.localVideoPip.classList.remove('d-none');
@@ -716,7 +824,6 @@
       if (dom.callToggleCamBtn) dom.callToggleCamBtn.classList.remove('d-none');
       if (dom.callScreenShareBtn) dom.callScreenShareBtn.classList.remove('d-none');
     } else {
-      // Voice call mode
       if (dom.remoteVideo) dom.remoteVideo.classList.add('d-none');
       if (dom.localVideoPip) dom.localVideoPip.classList.add('d-none');
       if (dom.remoteAudioPlaceholder) {
@@ -730,19 +837,25 @@
     if (dom.activeCallModal) dom.activeCallModal.classList.remove('d-none');
   }
 
-  // End Active Call (initiated locally)
   function endActiveCall() {
-    if (currentCall && currentCall.peer) {
-      socketInstance.emit('call:end', {
-        targetUserId: currentCall.peer._id,
-      });
+    if (currentCall) {
+      if (socketInstance && socketInstance.connected && currentCall.peer) {
+        socketInstance.emit('call:end', {
+          targetUserId: currentCall.peer._id,
+        });
+      }
+      if (currentCall.callId) {
+        fetch(`/api/calls/end/${currentCall.callId}`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+        }).catch(() => {});
+      }
     }
     playEndTone();
     showCallToast('Call ended');
     cleanupCall();
   }
 
-  // Toggle Microphone (Mute / Unmute)
   function toggleMicrophone() {
     if (!localStream) return;
     const audioTrack = localStream.getAudioTracks()[0];
@@ -759,7 +872,7 @@
       }
     }
 
-    if (currentCall && currentCall.peer) {
+    if (socketInstance && socketInstance.connected && currentCall && currentCall.peer) {
       socketInstance.emit('call:toggle_track', {
         targetUserId: currentCall.peer._id,
         kind: 'audio',
@@ -768,7 +881,6 @@
     }
   }
 
-  // Toggle Camera (Video On / Off)
   function toggleCamera() {
     if (!localStream) return;
     const videoTrack = localStream.getVideoTracks()[0];
@@ -789,7 +901,7 @@
       dom.localCamOffPlaceholder.classList.toggle('d-none', !isCamOff);
     }
 
-    if (currentCall && currentCall.peer) {
+    if (socketInstance && socketInstance.connected && currentCall && currentCall.peer) {
       socketInstance.emit('call:toggle_track', {
         targetUserId: currentCall.peer._id,
         kind: 'video',
@@ -798,12 +910,10 @@
     }
   }
 
-  // Toggle Screen Sharing
   async function toggleScreenShare() {
     if (!peerConnection) return;
 
     if (isScreenSharing) {
-      // Revert back to camera track
       try {
         if (screenStream) {
           screenStream.getTracks().forEach((t) => t.stop());
@@ -828,7 +938,6 @@
       return;
     }
 
-    // Start Screen Sharing
     try {
       if (!navigator.mediaDevices.getDisplayMedia) {
         showCallToast('Screen sharing is not supported by your browser.');
@@ -859,19 +968,16 @@
     }
   }
 
-  // Minimize Active Call to Floating Pill
   function minimizeCall() {
     if (dom.activeCallModal) dom.activeCallModal.classList.add('d-none');
     if (dom.minimizedCallPill) dom.minimizedCallPill.classList.remove('d-none');
   }
 
-  // Expand Minimized Call to Full Overlay
   function expandCall() {
     if (dom.minimizedCallPill) dom.minimizedCallPill.classList.add('d-none');
     if (dom.activeCallModal) dom.activeCallModal.classList.remove('d-none');
   }
 
-  // Toggle Fullscreen
   function toggleFullscreen() {
     if (!document.fullscreenElement) {
       if (dom.activeCallModal && dom.activeCallModal.requestFullscreen) {
@@ -884,29 +990,21 @@
     }
   }
 
-  // Bind UI Events
   function bindCallUiEvents() {
-    // Incoming modal buttons
     if (dom.btnAcceptCall) dom.btnAcceptCall.addEventListener('click', acceptIncomingCall);
     if (dom.btnDeclineCall) dom.btnDeclineCall.addEventListener('click', declineIncomingCall);
-
-    // Outgoing modal button
     if (dom.btnCancelCall) dom.btnCancelCall.addEventListener('click', cancelOutgoingCall);
-
-    // In-call controls
     if (dom.btnEndActiveCall) dom.btnEndActiveCall.addEventListener('click', endActiveCall);
     if (dom.callToggleMicBtn) dom.callToggleMicBtn.addEventListener('click', toggleMicrophone);
     if (dom.callToggleCamBtn) dom.callToggleCamBtn.addEventListener('click', toggleCamera);
     if (dom.callScreenShareBtn) dom.callScreenShareBtn.addEventListener('click', toggleScreenShare);
 
-    // Window control buttons
     if (dom.btnMinimizeCall) dom.btnMinimizeCall.addEventListener('click', minimizeCall);
     if (dom.btnExpandCall) dom.btnExpandCall.addEventListener('click', expandCall);
     if (dom.minimizedCallTrigger) dom.minimizedCallTrigger.addEventListener('click', expandCall);
     if (dom.btnEndMinimizedCall) dom.btnEndMinimizedCall.addEventListener('click', endActiveCall);
     if (dom.btnFullscreenCall) dom.btnFullscreenCall.addEventListener('click', toggleFullscreen);
 
-    // Header buttons (Triggering call from current active conversation)
     if (dom.headerAudioCallBtn) {
       dom.headerAudioCallBtn.addEventListener('click', () => {
         const conv = window.ChatInApp?.getActiveConversation ? window.ChatInApp.getActiveConversation() : null;
@@ -948,16 +1046,30 @@
     }
   }
 
-  // Socket Signaling Listeners
   function registerSocketSignaling(socket) {
+    if (!socket) return;
     socketInstance = socket;
     window.chatinSocket = socket;
 
-    socket.on('call:incoming', handleIncomingCall);
-    socket.on('call:accepted', handleCallAccepted);
-    socket.on('call:rejected', handleCallRejected);
-    socket.on('call:ice_candidate', handleRemoteIceCandidate);
-    socket.on('call:ended', handleRemoteCallEnded);
+    socket.on('call:incoming', (data) => {
+      handleIncomingCall(data);
+    });
+
+    socket.on('call:accepted', (data) => {
+      handleCallAccepted(data);
+    });
+
+    socket.on('call:rejected', (data) => {
+      handleCallRejected(data);
+    });
+
+    socket.on('call:ice_candidate', (data) => {
+      handleRemoteIceCandidate(data);
+    });
+
+    socket.on('call:ended', () => {
+      handleRemoteCallEnded();
+    });
 
     socket.on('call:track_toggled', (data) => {
       if (data.kind === 'video') {
@@ -975,10 +1087,38 @@
     });
   }
 
+  // Idle Poller for Incoming Calls (Enables serverless call alerts even when WebSockets are disconnected on Vercel)
+  function startIdleIncomingPoller() {
+    if (idlePollInterval) clearInterval(idlePollInterval);
+
+    idlePollInterval = setInterval(async () => {
+      if (currentCall) return; // already in a call or dialing
+
+      try {
+        const res = await fetch(`/api/calls/incoming?_t=${Date.now()}`, {
+          headers: getAuthHeaders(),
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json.success && json.call && !currentCall) {
+          const inc = json.call;
+          handleIncomingCall({
+            callId: inc._id,
+            caller: inc.caller,
+            callType: inc.callType,
+            offer: inc.offer,
+            conversationId: inc.conversation,
+          });
+        }
+      } catch (e) {}
+    }, 2500);
+  }
+
   // Initialize
   document.addEventListener('DOMContentLoaded', () => {
     cacheDomElements();
     bindCallUiEvents();
+    startIdleIncomingPoller();
   });
 
   // Global ChatInCall Interface

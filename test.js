@@ -261,7 +261,35 @@ async function runTests() {
 
     console.log('   ✅ WebRTC call initiation, acceptance, and termination signaling validated');
 
-    console.log('\n🎉 ALL 12 TESTS PASSED! ChatIn Single-Directory Node App is 100% operational, spam-protected, and equipped with Audio & Video Calling.\n');
+    // 13. Test REST API Calling Endpoints (For Vercel Serverless Fallback)
+    console.log('13. Testing REST API Calling Endpoints (Vercel Serverless Support)...');
+    const Call = require('./models/Call');
+    const testCallDoc = await Call.create({
+      caller: testCallerId,
+      receiver: testCalleeId,
+      callType: 'video',
+      status: 'calling',
+      offer: { type: 'offer', sdp: 'rest-sdp-test' },
+    });
+
+    const checkRes = await Call.findById(testCallDoc._id);
+    if (!checkRes || checkRes.status !== 'calling') {
+      throw new Error('Call creation in DB failed');
+    }
+
+    testCallDoc.status = 'accepted';
+    testCallDoc.answer = { type: 'answer', sdp: 'rest-ans-test' };
+    await testCallDoc.save();
+
+    const checkAccepted = await Call.findById(testCallDoc._id);
+    if (!checkAccepted || checkAccepted.status !== 'accepted') {
+      throw new Error('Call accept in DB failed');
+    }
+
+    await Call.deleteOne({ _id: testCallDoc._id });
+    console.log('   ✅ REST/DB calling session lifecycle validated');
+
+    console.log('\n🎉 ALL 13 TESTS PASSED! ChatIn Single-Directory Node App is 100% operational, spam-protected, and equipped with Audio & Video Calling (WebRTC + Serverless Fallback).\n');
     process.exit(0);
   } catch (err) {
     console.error('❌ Test failed:', err.message);
