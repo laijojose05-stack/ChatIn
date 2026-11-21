@@ -214,6 +214,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
+    // Poll voted / updated in real-time
+    socket.on('poll_updated', ({ conversationId, message }) => {
+      if (activeConversation && activeConversation._id === conversationId && message && message.poll) {
+        updatePollDom(message._id, message.poll);
+      }
+    });
+
     // Conversation cleared
     socket.on('conversation_cleared', ({ conversationId }) => {
       if (activeConversation && activeConversation._id === conversationId) {
@@ -313,6 +320,57 @@ document.addEventListener('DOMContentLoaded', () => {
       list = list.filter((c) => isGroupConv(c));
     } else if (currentFilter === 'unread') {
       list = list.filter((c) => (c.unreadCount || 0) > 0);
+    } else if (currentFilter === 'starred') {
+      let starredItems = [];
+      try {
+        const map = JSON.parse(localStorage.getItem('chatin_starred_details') || '{}');
+        starredItems = Object.values(map);
+      } catch (e) {}
+
+      conversationsList.innerHTML = '';
+      if (starredItems.length === 0) {
+        conversationsList.innerHTML = `
+          <div class="text-center text-muted small py-5 px-3">
+            <i class="bi bi-star fs-2 d-block mb-2 text-warning opacity-75"></i>
+            <div class="fw-semibold">No starred messages yet</div>
+            <div class="extra-small opacity-75 mt-1">Hover over any message and click Star to bookmark it here for quick access.</div>
+          </div>
+        `;
+        return;
+      }
+
+      starredItems.forEach((st) => {
+        const item = document.createElement('div');
+        item.className = 'conv-item starred-item cursor-pointer';
+        item.innerHTML = `
+          <div class="conv-avatar-wrap">
+            <div class="avatar-circle bg-warning bg-opacity-10 text-warning border border-warning border-opacity-25">
+              <i class="bi bi-star-fill"></i>
+            </div>
+          </div>
+          <div class="conv-info flex-grow-1 overflow-hidden min-w-0">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <span class="conv-title text-truncate fw-bold">${escapeHtml(st.sender || 'Message')}</span>
+              <span class="conv-time extra-small text-muted">${escapeHtml(st.time || '')}</span>
+            </div>
+            <div class="conv-snippet text-truncate small text-secondary">${escapeHtml(st.text || 'Starred attachment')}</div>
+          </div>
+        `;
+        item.addEventListener('click', () => {
+          if (st.conversationId) {
+            const targetConv = conversations.find(c => c._id === st.conversationId);
+            if (targetConv) {
+              selectConversation(targetConv).then(() => {
+                setTimeout(() => window.scrollToMessage(st.id), 300);
+              });
+              return;
+            }
+          }
+          window.scrollToMessage(st.id);
+        });
+        conversationsList.appendChild(item);
+      });
+      return;
     }
 
     // Apply Search Query
@@ -862,35 +920,396 @@ document.addEventListener('DOMContentLoaded', () => {
     rowReactions.innerHTML = pills;
   }
 
-  // 5. Toggle Audio Playback
-  window.toggleAudioPlay = (msgId) => {
+  // ==========================================================================
+  // Native Web Audio Synthesized Tactile Sound FX
+  // ==========================================================================
+  let audioCtx = null;
+  function getAudioCtx() {
+    if (!audioCtx) {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (AudioContext) audioCtx = new AudioContext();
+    }
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    return audioCtx;
+  }
+
+  function playSendPop() {
+    try {
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(560, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(820, ctx.currentTime + 0.07);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.07);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.07);
+    } catch (e) {}
+  }
+
+  function playNotificationChime() {
+    try {
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+      // High bright two-tone chime
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(587.33, now); // D5
+      gain1.gain.setValueAtTime(0.14, now);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.16);
+
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(880, now + 0.08); // A5
+      gain2.gain.setValueAtTime(0.16, now + 0.08);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(now + 0.08);
+      osc2.stop(now + 0.28);
+    } catch (e) {}
+  }
+
+  function playReactionTap() {
+    try {
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(440, ctx.currentTime);
+      gain.gain.setValueAtTime(0.09, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.04);
+    } catch (e) {}
+  }
+
+  // ==========================================================================
+  // Neumorphic Waveform Audio Player
+  // ==========================================================================
+  const WAVEFORM_HEIGHTS = [8, 14, 22, 10, 18, 26, 12, 20, 16, 24, 18, 12, 22, 14, 20, 26, 10, 16, 12, 18];
+
+  function renderWaveformPlayerHtml(msgId, fileUrl) {
+    const barsHtml = WAVEFORM_HEIGHTS.map((h, i) =>
+      `<span class="waveform-bar" style="height: ${h}px" data-bar="${i}"></span>`
+    ).join('');
+
+    return `
+      <div class="waveform-audio-player" id="waveformPlayer-${msgId}">
+        <audio src="${fileUrl}" preload="metadata" id="audio-${msgId}"></audio>
+        <button type="button" class="waveform-play-disc" onclick="window.toggleWaveformAudio('${msgId}')" id="audioBtn-${msgId}" title="Play Voice Note">
+          <i class="bi bi-play-fill fs-5"></i>
+        </button>
+        <div class="waveform-bars-wrap" onclick="window.seekWaveformAudio(event, '${msgId}')">
+          ${barsHtml}
+        </div>
+        <div class="d-flex align-items-center gap-1">
+          <span class="extra-small font-monospace opacity-75" id="audioTime-${msgId}">0:00</span>
+          <button type="button" class="audio-speed-pill" onclick="window.cycleAudioSpeed('${msgId}')" id="audioSpeed-${msgId}" title="Playback speed">1x</button>
+        </div>
+      </div>
+    `;
+  }
+
+  window.toggleWaveformAudio = (msgId) => {
     const audio = document.getElementById(`audio-${msgId}`);
     const btn = document.getElementById(`audioBtn-${msgId}`);
-    const timer = document.getElementById(`audioTime-${msgId}`);
+    const player = document.getElementById(`waveformPlayer-${msgId}`);
     if (!audio || !btn) return;
 
     if (audio.paused) {
-      document.querySelectorAll('audio').forEach(a => { if (a !== audio) a.pause(); });
-      document.querySelectorAll('.audio-play-btn i').forEach(i => i.className = 'bi bi-play-fill fs-5');
-      audio.play();
+      document.querySelectorAll('audio').forEach((a) => {
+        if (a !== audio && !a.paused) {
+          a.pause();
+          a.currentTime = 0;
+          const otherId = a.id.replace('audio-', '');
+          const otherBtn = document.getElementById(`audioBtn-${otherId}`);
+          const otherPlayer = document.getElementById(`waveformPlayer-${otherId}`);
+          if (otherBtn) otherBtn.innerHTML = '<i class="bi bi-play-fill fs-5"></i>';
+          if (otherPlayer) otherPlayer.classList.remove('playing');
+        }
+      });
+
+      audio.play().catch(() => {});
       btn.innerHTML = '<i class="bi bi-pause-fill fs-5"></i>';
+      if (player) player.classList.add('playing');
     } else {
       audio.pause();
       btn.innerHTML = '<i class="bi bi-play-fill fs-5"></i>';
+      if (player) player.classList.remove('playing');
     }
 
     audio.ontimeupdate = () => {
-      if (timer) {
+      const timeEl = document.getElementById(`audioTime-${msgId}`);
+      if (timeEl && audio.duration) {
         const mins = Math.floor(audio.currentTime / 60);
         const secs = Math.floor(audio.currentTime % 60).toString().padStart(2, '0');
-        timer.textContent = `${mins}:${secs}`;
+        timeEl.textContent = `${mins}:${secs}`;
+        const pct = audio.currentTime / audio.duration;
+        const bars = player ? player.querySelectorAll('.waveform-bar') : [];
+        const activeCount = Math.floor(pct * bars.length);
+        bars.forEach((b, i) => {
+          b.style.opacity = i <= activeCount ? '1' : '0.4';
+          b.style.background = i <= activeCount ? 'var(--accent-primary)' : 'var(--text-secondary)';
+        });
       }
     };
 
     audio.onended = () => {
       btn.innerHTML = '<i class="bi bi-play-fill fs-5"></i>';
+      if (player) player.classList.remove('playing');
+      const timeEl = document.getElementById(`audioTime-${msgId}`);
+      if (timeEl && audio.duration) {
+        const mins = Math.floor(audio.duration / 60);
+        const secs = Math.floor(audio.duration % 60).toString().padStart(2, '0');
+        timeEl.textContent = `${mins}:${secs}`;
+      }
     };
   };
+
+  window.toggleAudioPlay = window.toggleWaveformAudio;
+
+  window.cycleAudioSpeed = (msgId) => {
+    const audio = document.getElementById(`audio-${msgId}`);
+    const pill = document.getElementById(`audioSpeed-${msgId}`);
+    if (!audio || !pill) return;
+    const speeds = [1, 1.5, 2];
+    let nextIdx = (speeds.indexOf(audio.playbackRate) + 1) % speeds.length;
+    if (nextIdx < 0) nextIdx = 0;
+    audio.playbackRate = speeds[nextIdx];
+    pill.textContent = `${speeds[nextIdx]}x`;
+  };
+
+  window.seekWaveformAudio = (e, msgId) => {
+    const audio = document.getElementById(`audio-${msgId}`);
+    const wrap = e.currentTarget;
+    if (!audio || !audio.duration || !wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    audio.currentTime = ratio * audio.duration;
+  };
+
+  // ==========================================================================
+  // Interactive Real-Time Neumorphic Polls
+  // ==========================================================================
+  function renderPollCardHtml(msg) {
+    if (!msg || !msg.poll || !Array.isArray(msg.poll.options)) return '';
+    const poll = msg.poll;
+    const currentUserIdStr = (currentUser._id || '').toString();
+    const totalVotes = poll.options.reduce((sum, opt) => sum + (opt.votes ? opt.votes.length : 0), 0);
+
+    const optionsHtml = poll.options.map((opt, idx) => {
+      const votesCount = opt.votes ? opt.votes.length : 0;
+      const pct = totalVotes > 0 ? Math.round((votesCount / totalVotes) * 100) : 0;
+      const hasVoted = opt.votes && opt.votes.some(v => (v._id || v).toString() === currentUserIdStr);
+
+      return `
+        <div class="neu-poll-option-btn ${hasVoted ? 'voted' : ''}" onclick="window.votePoll('${msg._id}', ${idx})" data-idx="${idx}">
+          <div class="neu-poll-progress-bar" style="width: ${pct}%"></div>
+          <div class="neu-poll-option-content">
+            <i class="bi ${hasVoted ? 'bi-check-circle-fill text-success' : 'bi-circle text-secondary'}"></i>
+            <span>${escapeHtml(opt.text)}</span>
+          </div>
+          <div class="neu-poll-option-stats">
+            <span>${pct}%</span>
+            <span class="opacity-75 ms-1">(${votesCount})</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="neu-poll-card" id="poll-${msg._id}">
+        <div class="neu-poll-header d-flex align-items-center gap-2 mb-2">
+          <i class="bi bi-bar-chart-fill text-success fs-5"></i>
+          <span class="neu-poll-question fw-bold">${escapeHtml(poll.question)}</span>
+        </div>
+        <div class="neu-poll-options d-flex flex-column gap-2 mb-2">
+          ${optionsHtml}
+        </div>
+        <div class="neu-poll-footer d-flex justify-content-between align-items-center extra-small text-muted pt-2 border-top">
+          <span><i class="bi bi-people-fill me-1"></i>${totalVotes} vote${totalVotes === 1 ? '' : 's'}</span>
+          <span>${poll.allowMultipleAnswers ? 'Multiple answers allowed' : 'Select one'}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  window.votePoll = async (msgId, optionIndex) => {
+    if (!msgId && optionIndex === undefined) return;
+    try {
+      playReactionTap();
+      const res = await fetch(`/api/messages/${msgId}/poll-vote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ optionIndex }),
+      });
+      const data = await res.json();
+      if (data.success && data.data) {
+        updatePollDom(msgId, data.data.poll);
+        if (socket && socket.connected && activeConversation) {
+          socket.emit('poll_vote_update', {
+            conversationId: activeConversation._id,
+            message: data.data,
+          });
+        }
+      } else if (data.message) {
+        showToast(data.message);
+      }
+    } catch (e) {
+      showToast('Failed to register vote');
+    }
+  };
+
+  function updatePollDom(msgId, poll) {
+    const pollEl = document.getElementById(`poll-${msgId}`);
+    if (!pollEl || !poll) return;
+    const currentUserIdStr = (currentUser._id || '').toString();
+    const totalVotes = poll.options.reduce((sum, opt) => sum + (opt.votes ? opt.votes.length : 0), 0);
+
+    poll.options.forEach((opt, idx) => {
+      const optEl = pollEl.querySelector(`.neu-poll-option-btn[data-idx="${idx}"]`);
+      if (!optEl) return;
+      const votesCount = opt.votes ? opt.votes.length : 0;
+      const pct = totalVotes > 0 ? Math.round((votesCount / totalVotes) * 100) : 0;
+      const hasVoted = opt.votes && opt.votes.some(v => (v._id || v).toString() === currentUserIdStr);
+
+      optEl.classList.toggle('voted', hasVoted);
+      const icon = optEl.querySelector('.neu-poll-option-content i');
+      if (icon) {
+        icon.className = `bi ${hasVoted ? 'bi-check-circle-fill text-success' : 'bi-circle text-secondary'}`;
+      }
+      const progressBar = optEl.querySelector('.neu-poll-progress-bar');
+      if (progressBar) {
+        progressBar.style.width = `${pct}%`;
+      }
+      const stats = optEl.querySelector('.neu-poll-option-stats');
+      if (stats) {
+        stats.innerHTML = `<span>${pct}%</span><span class="opacity-75 ms-1">(${votesCount})</span>`;
+      }
+    });
+
+    const footerSpan = pollEl.querySelector('.neu-poll-footer span:first-child');
+    if (footerSpan) {
+      footerSpan.innerHTML = `<i class="bi bi-people-fill me-1"></i>${totalVotes} vote${totalVotes === 1 ? '' : 's'}`;
+    }
+  }
+
+  // ==========================================================================
+  // Desktop Neumorphic Context Menu (WhatsApp Web Style)
+  // ==========================================================================
+  let activeMenuMsgId = null;
+  const desktopMsgMenu = document.getElementById('desktopMsgMenu');
+
+  window.openDesktopMessageMenu = (e, msgId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!desktopMsgMenu || !msgId) return;
+
+    activeMenuMsgId = msgId;
+    const row = document.querySelector(`.message-row[data-id="${msgId}"]`);
+    const isMine = row ? row.classList.contains('sent') : false;
+
+    // Show/hide delete button based on ownership
+    const delBtn = document.getElementById('desktopMenuDeleteBtn');
+    if (delBtn) delBtn.classList.toggle('d-none', !isMine);
+
+    // Position menu near click
+    const menuWidth = 200;
+    const menuHeight = 260;
+    let x = e.clientX || (e.target ? e.target.getBoundingClientRect().right : 100);
+    let y = e.clientY || (e.target ? e.target.getBoundingClientRect().bottom : 100);
+
+    if (x + menuWidth > window.innerWidth) x = window.innerWidth - menuWidth - 16;
+    if (y + menuHeight > window.innerHeight) y = window.innerHeight - menuHeight - 16;
+
+    desktopMsgMenu.style.left = `${Math.max(10, x)}px`;
+    desktopMsgMenu.style.top = `${Math.max(10, y)}px`;
+    desktopMsgMenu.classList.remove('d-none');
+  };
+
+  document.addEventListener('click', (e) => {
+    if (desktopMsgMenu && !desktopMsgMenu.classList.contains('d-none')) {
+      if (!desktopMsgMenu.contains(e.target)) {
+        desktopMsgMenu.classList.add('d-none');
+        activeMenuMsgId = null;
+      }
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && desktopMsgMenu) {
+      desktopMsgMenu.classList.add('d-none');
+      activeMenuMsgId = null;
+    }
+  });
+
+  // Desktop Menu Action handlers
+  document.querySelectorAll('.desktop-react-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const emoji = btn.dataset.emoji;
+      if (activeMenuMsgId && emoji) {
+        window.toggleReaction(activeMenuMsgId, emoji);
+      }
+      desktopMsgMenu?.classList.add('d-none');
+    });
+  });
+
+  document.getElementById('desktopMenuReplyBtn')?.addEventListener('click', () => {
+    if (activeMenuMsgId) {
+      const row = document.querySelector(`.message-row[data-id="${activeMenuMsgId}"]`);
+      const text = row?.querySelector('.msg-text')?.textContent || '';
+      const sender = row?.classList.contains('sent') ? 'You' : (row?.querySelector('.msg-sender-name')?.textContent || 'User');
+      window.startReplyToMessage(activeMenuMsgId, sender, text);
+    }
+    desktopMsgMenu?.classList.add('d-none');
+  });
+
+  document.getElementById('desktopMenuCopyBtn')?.addEventListener('click', () => {
+    if (activeMenuMsgId) {
+      const row = document.querySelector(`.message-row[data-id="${activeMenuMsgId}"]`);
+      const text = row?.querySelector('.msg-text')?.textContent || '';
+      window.copyMessageText(text);
+    }
+    desktopMsgMenu?.classList.add('d-none');
+  });
+
+  document.getElementById('desktopMenuStarBtn')?.addEventListener('click', () => {
+    if (activeMenuMsgId) window.toggleStarMessage(activeMenuMsgId);
+    desktopMsgMenu?.classList.add('d-none');
+  });
+
+  document.getElementById('desktopMenuPinBtn')?.addEventListener('click', () => {
+    if (activeMenuMsgId) {
+      const row = document.querySelector(`.message-row[data-id="${activeMenuMsgId}"]`);
+      const text = row?.querySelector('.msg-text')?.textContent || '';
+      const sender = row?.classList.contains('sent') ? 'You' : (row?.querySelector('.msg-sender-name')?.textContent || 'User');
+      window.pinMessage(activeMenuMsgId, sender, text);
+    }
+    desktopMsgMenu?.classList.add('d-none');
+  });
+
+  document.getElementById('desktopMenuDeleteBtn')?.addEventListener('click', () => {
+    if (activeMenuMsgId) window.deleteMessageById(activeMenuMsgId);
+    desktopMsgMenu?.classList.add('d-none');
+  });
 
   // ==========================================================================
   // Starred Messages Engine (Saved to Local Storage & Visual Star Badge)
@@ -921,11 +1340,33 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       starred.add(idStr);
       isNowStarred = true;
+      playReactionTap();
       showToast('Message starred ⭐');
     }
 
     try {
       localStorage.setItem('chatin_starred_messages', JSON.stringify([...starred]));
+    } catch (e) {}
+
+    // Track details for the Starred filter tab
+    try {
+      const detailedMap = JSON.parse(localStorage.getItem('chatin_starred_details') || '{}');
+      if (isNowStarred) {
+        const row = document.querySelector(`.message-row[data-id="${msgId}"]`);
+        const text = row?.querySelector('.msg-text')?.textContent || 'Starred message';
+        const sender = row?.classList.contains('sent') ? 'You' : (row?.querySelector('.msg-sender-name')?.textContent || 'Contact');
+        const time = row?.querySelector('.msg-time')?.textContent || '';
+        detailedMap[idStr] = {
+          id: idStr,
+          conversationId: activeConversation ? activeConversation._id : null,
+          text,
+          sender,
+          time,
+        };
+      } else {
+        delete detailedMap[idStr];
+      }
+      localStorage.setItem('chatin_starred_details', JSON.stringify(detailedMap));
     } catch (e) {}
 
     // Update DOM in active stream
@@ -944,12 +1385,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (starBadge) {
           starBadge.remove();
         }
-      }
-      const starActionBtn = row.querySelector('.action-icon-btn[title="Star message"]');
-      if (starActionBtn) {
-        starActionBtn.classList.toggle('text-warning', isNowStarred);
-        const icon = starActionBtn.querySelector('i');
-        if (icon) icon.className = `bi bi-star${isNowStarred ? '-fill' : ''}`;
       }
     }
   };
@@ -1991,18 +2426,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isImg) {
           attachmentHtml = `<img src="${fileUrl}" class="msg-img-attachment" alt="${escapeHtml(fileName)}" onclick="window.open('${fileUrl}', '_blank')">`;
         } else if (isAudio) {
-          attachmentHtml = `
-            <div class="audio-msg-player my-1 p-2 rounded-3 bg-black bg-opacity-20 d-flex align-items-center gap-2">
-              <audio src="${fileUrl}" preload="metadata" id="audio-${msg._id}"></audio>
-              <button type="button" class="audio-play-btn" onclick="window.toggleAudioPlay('${msg._id}')" id="audioBtn-${msg._id}">
-                <i class="bi bi-play-fill fs-5"></i>
-              </button>
-              <div class="flex-grow-1 overflow-hidden min-w-0">
-                <div class="extra-small fw-semibold text-truncate"><i class="bi bi-mic-fill me-1"></i>Voice Note</div>
-                <div class="extra-small opacity-75 font-monospace" id="audioTime-${msg._id}">0:00</div>
-              </div>
-            </div>
-          `;
+          attachmentHtml = renderWaveformPlayerHtml(msg._id, fileUrl);
         } else {
           attachmentHtml = `
             <a href="${fileUrl}" target="_blank" download="${escapeHtml(fileName)}" class="msg-file-attachment d-flex align-items-center gap-2 p-2 rounded-2 text-decoration-none">
@@ -2022,7 +2446,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const isDeleted = Boolean(msg.deletedAt || msg.isDeleted);
     const contentText = isDeleted ? 'This message was deleted' : (msg.content || '');
-    const formattedHtml = isDeleted ? 'This message was deleted' : formatRichMessage(contentText);
+    const isPoll = !isDeleted && (msg.messageType === 'poll' || Boolean(msg.poll));
+    const pollHtml = isPoll ? renderPollCardHtml(msg) : '';
+    const formattedHtml = isDeleted ? 'This message was deleted' : (isPoll ? '' : formatRichMessage(contentText));
 
     // Starred status
     const isStarred = typeof isMessageStarred === 'function' ? isMessageStarred(msg._id) : false;
@@ -2061,51 +2487,41 @@ document.addEventListener('DOMContentLoaded', () => {
       reactionsHtml = `<div class="msg-reactions-row" id="reactions-${msg._id}">${pills}</div>`;
     }
 
-    // Action Bar (Quick Reactions, Star, Pin, Reply, Copy, Delete)
-    let actionsHtml = '';
+    // Clean Hover Actions Bar (Floating safely alongside bubble)
+    let hoverActionsHtml = '';
     if (!isDeleted && msg._id && !msg._id.toString().startsWith('temp_')) {
       const escapedCleanText = escapeHtml((contentText || '').replace(/['"]/g, ''));
       const escapedSender = escapeHtml(senderUsername || (isMine ? 'You' : 'User'));
-      actionsHtml = `
-        <div class="msg-actions-bar">
-          <button type="button" class="reaction-quick-btn" onclick="window.toggleReaction('${msg._id}', '👍')" title="Thumbs up"><i class="bi bi-hand-thumbs-up-fill text-warning"></i></button>
-          <button type="button" class="reaction-quick-btn" onclick="window.toggleReaction('${msg._id}', '❤️')" title="Heart"><i class="bi bi-heart-fill text-danger"></i></button>
-          <button type="button" class="action-icon-btn" onclick="window.startReplyToMessage('${msg._id}', '${escapedSender}', '${escapedCleanText}')" title="Reply">
-            <i class="bi bi-reply-fill"></i>
-          </button>
-          <button type="button" class="action-icon-btn ${isStarred ? 'text-warning' : ''}" onclick="window.toggleStarMessage('${msg._id}')" title="Star message">
-            <i class="bi bi-star${isStarred ? '-fill' : ''}"></i>
-          </button>
-          <button type="button" class="action-icon-btn" onclick="window.pinMessage('${msg._id}', '${escapedSender}', '${escapedCleanText}')" title="Pin message to top">
-            <i class="bi bi-pin-angle"></i>
-          </button>
-          <button type="button" class="action-icon-btn" onclick="window.copyMessageText('${escapedCleanText}')" title="Copy text">
-            <i class="bi bi-clipboard"></i>
-          </button>
-          ${isMine ? `
-            <button type="button" class="action-icon-btn text-danger" onclick="window.deleteMessageById('${msg._id}')" title="Delete message">
-              <i class="bi bi-trash3"></i>
-            </button>
-          ` : ''}
+      hoverActionsHtml = `
+        <div class="msg-hover-actions">
+          <button type="button" class="msg-quick-react-btn" onclick="window.toggleReaction('${msg._id}', '👍')" title="Thumbs up">👍</button>
+          <button type="button" class="msg-quick-react-btn" onclick="window.toggleReaction('${msg._id}', '❤️')" title="Heart">❤️</button>
+          <button type="button" class="msg-quick-react-btn" onclick="window.startReplyToMessage('${msg._id}', '${escapedSender}', '${escapedCleanText}')" title="Reply"><i class="bi bi-reply-fill"></i></button>
+          <button type="button" class="msg-quick-more-btn" onclick="window.openDesktopMessageMenu(event, '${msg._id}')" title="More options"><i class="bi bi-three-dots"></i></button>
         </div>
       `;
     }
 
+    const dropdownChevronHtml = !isDeleted && msg._id && !msg._id.toString().startsWith('temp_')
+      ? `<button type="button" class="msg-dropdown-trigger" onclick="window.openDesktopMessageMenu(event, '${msg._id}')" title="Message options"><i class="bi bi-chevron-down"></i></button>`
+      : '';
+
     row.innerHTML = `
       <div class="message-bubble-wrapper">
         <div class="message-bubble ${isDeleted ? 'opacity-75' : ''}">
+          ${dropdownChevronHtml}
           ${replyQuoteHtml}
           ${senderName ? `<div class="msg-sender-name">${escapeHtml(senderName)}</div>` : ''}
           ${!isDeleted ? attachmentHtml : ''}
-          <span class="msg-text ${isDeleted ? 'fst-italic' : ''}">${formattedHtml}</span>
+          ${pollHtml ? pollHtml : `<span class="msg-text ${isDeleted ? 'fst-italic' : ''}">${formattedHtml}</span>`}
           <span class="msg-meta">
             <span class="msg-time">${time}</span>
             ${starHtml}
             ${tickHtml}
           </span>
           ${reactionsHtml}
-          ${actionsHtml}
         </div>
+        ${hoverActionsHtml}
       </div>
     `;
 
@@ -2146,6 +2562,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       appendMessageToView(optimisticMsg);
       scrollToBottom();
+      playSendPop();
       updateSidebarSnippet(activeConversation._id, text || 'Sent an attachment');
 
       // Clear input and reply bar immediately so user can continue typing without delay
@@ -2225,6 +2642,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       appendMessageToView(msg);
+      const senderId = (msg.senderId?._id || msg.senderId || '').toString();
+      const currentId = (currentUser._id || '').toString();
+      if (senderId && senderId !== currentId) {
+        playNotificationChime();
+      }
       const isNearBottom = messagesViewport
         ? messagesViewport.scrollHeight - messagesViewport.scrollTop - messagesViewport.clientHeight < 160
         : true;
@@ -2591,6 +3013,110 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
     }
+  }
+
+  // 11b. Modals: Create Poll
+  const createPollBtn = document.getElementById('createPollBtn');
+  const createPollModalEl = document.getElementById('createPollModal');
+  const createPollForm = document.getElementById('createPollForm');
+  const addPollOptionBtn = document.getElementById('addPollOptionBtn');
+  const pollOptionsContainer = document.getElementById('pollOptionsContainer');
+
+  if (createPollBtn && createPollModalEl) {
+    createPollBtn.addEventListener('click', () => {
+      if (!activeConversation) {
+        showToast('Select a conversation to send a poll');
+        return;
+      }
+      createPollForm?.reset();
+      if (pollOptionsContainer) {
+        pollOptionsContainer.innerHTML = `
+          <div class="input-group">
+            <span class="input-group-text bg-transparent border-0 text-secondary">1</span>
+            <input type="text" class="form-control neu-input poll-option-input" placeholder="Option 1" required maxlength="100">
+          </div>
+          <div class="input-group">
+            <span class="input-group-text bg-transparent border-0 text-secondary">2</span>
+            <input type="text" class="form-control neu-input poll-option-input" placeholder="Option 2" required maxlength="100">
+          </div>
+        `;
+      }
+      const modal = getModal(createPollModalEl);
+      if (modal) modal.show();
+    });
+  }
+
+  if (addPollOptionBtn && pollOptionsContainer) {
+    addPollOptionBtn.addEventListener('click', () => {
+      const currentCount = pollOptionsContainer.querySelectorAll('.input-group').length;
+      if (currentCount >= 6) {
+        showToast('Maximum 6 options allowed');
+        return;
+      }
+      const div = document.createElement('div');
+      div.className = 'input-group';
+      div.innerHTML = `
+        <span class="input-group-text bg-transparent border-0 text-secondary">${currentCount + 1}</span>
+        <input type="text" class="form-control neu-input poll-option-input" placeholder="Option ${currentCount + 1}" required maxlength="100">
+        <button type="button" class="btn btn-outline-danger border-0 btn-sm" onclick="this.parentElement.remove()" title="Remove option"><i class="bi bi-x-lg"></i></button>
+      `;
+      pollOptionsContainer.appendChild(div);
+    });
+  }
+
+  if (createPollForm) {
+    createPollForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!activeConversation) return;
+
+      const question = document.getElementById('pollQuestionInput')?.value.trim();
+      const optionInputs = pollOptionsContainer?.querySelectorAll('.poll-option-input');
+      const options = [];
+      optionInputs?.forEach(inp => {
+        const val = inp.value.trim();
+        if (val) options.push({ text: val });
+      });
+
+      if (!question) {
+        showToast('Please enter a question');
+        return;
+      }
+      if (options.length < 2) {
+        showToast('Please enter at least 2 options');
+        return;
+      }
+
+      const allowMultiple = document.getElementById('pollMultipleAnswersSwitch')?.checked || false;
+
+      try {
+        const res = await fetch('/api/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            conversationId: activeConversation._id,
+            content: question,
+            messageType: 'poll',
+            poll: {
+              question,
+              options,
+              allowMultipleAnswers: allowMultiple,
+            },
+          }),
+        });
+        const data = await res.json();
+        if (data.success && data.data) {
+          appendMessageToView(data.data);
+          scrollToBottom();
+          playSendPop();
+          const modal = getModal(createPollModalEl);
+          if (modal) modal.hide();
+        } else {
+          showToast(data.message || 'Failed to send poll');
+        }
+      } catch (err) {
+        showToast('Failed to create poll');
+      }
+    });
   }
 
   // 12. Chat Details Info Button Handler
@@ -3019,36 +3545,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     });
-  }
-
-  // Web Audio Synthesizer Notification Chime
-  let audioCtx = null;
-  function playNotificationChime(forcePlay = false) {
-    const soundEnabled = localStorage.getItem('chatin_sound_enabled') !== 'false';
-    if (!soundEnabled && !forcePlay) return;
-    try {
-      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContextClass) return;
-      if (!audioCtx) audioCtx = new AudioContextClass();
-      if (audioCtx.state === 'suspended') audioCtx.resume();
-
-      const now = audioCtx.currentTime;
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, now); // D5
-      osc.frequency.exponentialRampToValueAtTime(880, now + 0.12); // A5
-
-      gain.gain.setValueAtTime(0.12, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-
-      osc.start(now);
-      osc.stop(now + 0.36);
-    } catch (e) {}
   }
 
   // Utilities

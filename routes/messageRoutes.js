@@ -10,6 +10,7 @@ const {
   uploadAttachments,
   toggleReaction,
   clearConversationHistory,
+  votePoll,
 } = require('../controllers/messageController');
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
@@ -20,6 +21,7 @@ router.post('/', protect, messageLimiter, sanitizeMessage, sendMessage);
 router.put('/:id', protect, sanitizeMessage, editMessage);
 router.delete('/:id', protect, deleteMessage);
 router.post('/:id/react', protect, toggleReaction);
+router.post('/:id/poll-vote', protect, votePoll);
 router.post('/:conversationId/clear', protect, clearConversationHistory);
 router.post('/:conversationId/read', protect, markAsRead);
 router.post('/:conversationId/delivered', protect, markAsDelivered);

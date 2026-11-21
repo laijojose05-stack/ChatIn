@@ -21,8 +21,18 @@ const messageSchema = new mongoose.Schema(
     },
     messageType: {
       type: String,
-      enum: ['text', 'image', 'document', 'system'],
+      enum: ['text', 'image', 'document', 'system', 'poll'],
       default: 'text',
+    },
+    poll: {
+      question: { type: String, trim: true },
+      options: [
+        {
+          text: { type: String, trim: true },
+          votes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+        },
+      ],
+      allowMultipleAnswers: { type: Boolean, default: false },
     },
     attachments: [
       {

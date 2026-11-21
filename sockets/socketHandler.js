@@ -215,6 +215,15 @@ const registerSocketHandlers = (io) => {
       });
     });
 
+    // 8b. Real-Time Poll Vote Update
+    socket.on('poll_vote_update', ({ conversationId, message }) => {
+      if (!conversationId || !message) return;
+      io.to(`conv:${conversationId}`).emit('poll_updated', {
+        conversationId,
+        message,
+      });
+    });
+
     // 9. Conversation or group created / updated
     socket.on('conversation_created', ({ conversation, participantIds }) => {
       if (Array.isArray(participantIds)) {

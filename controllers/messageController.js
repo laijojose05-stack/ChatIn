@@ -80,7 +80,7 @@ const getMessages = async (req, res, next) => {
 // @access  Private
 const sendMessage = async (req, res, next) => {
   try {
-    const { conversationId, content, replyTo, attachments, messageType } = req.body;
+    const { conversationId, content, replyTo, attachments, messageType, poll } = req.body;
     const currentUserId = req.user._id;
 
     if (!conversationId) {
@@ -98,7 +98,22 @@ const sendMessage = async (req, res, next) => {
       }));
     }
 
-    if (!content && normalizedAttachments.length === 0) {
+    let pollData = null;
+    if (poll && poll.question && Array.isArray(poll.options) && poll.options.length >= 2) {
+      pollData = {
+        question: poll.question.trim(),
+        options: poll.options.map((opt) => ({
+          text: (typeof opt === 'string' ? opt : opt.text || '').trim(),
+          votes: [],
+        })).filter((o) => o.text.length > 0),
+        allowMultipleAnswers: Boolean(poll.allowMultipleAnswers),
+      };
+      if (pollData.options.length < 2) {
+        return res.status(400).json({ success: false, message: 'Poll requires at least 2 non-empty options' });
+      }
+    }
+
+    if (!content && normalizedAttachments.length === 0 && !pollData) {
       return res.status(400).json({ success: false, message: 'Message cannot be empty' });
     }
 
@@ -117,10 +132,11 @@ const sendMessage = async (req, res, next) => {
     const newMessage = await Message.create({
       conversationId,
       senderId: currentUserId,
-      content: content || '',
+      content: content || (pollData ? `📊 Poll: ${pollData.question}` : ''),
       replyTo: replyTo || null,
       attachments: normalizedAttachments,
-      messageType: messageType || (normalizedAttachments.length > 0 ? 'image' : 'text'),
+      messageType: pollData ? 'poll' : (messageType || (normalizedAttachments.length > 0 ? 'image' : 'text')),
+      poll: pollData,
       readBy: [{ user: currentUserId, readAt: new Date() }],
       deliveredTo: [{ user: currentUserId, deliveredAt: new Date() }],
     });
@@ -523,6 +539,92 @@ const clearConversationHistory = async (req, res, next) => {
   }
 };
 
+// @desc    Vote on a poll option
+// @route   POST /api/messages/:id/poll-vote
+// @access  Private
+const votePoll = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { optionIndex } = req.body;
+    const currentUserId = req.user._id;
+
+    if (typeof optionIndex !== 'number') {
+      return res.status(400).json({ success: false, message: 'Valid optionIndex is required' });
+    }
+
+    const message = await Message.findById(id);
+    if (!message || message.deletedAt) {
+      return res.status(404).json({ success: false, message: 'Poll message not found' });
+    }
+
+    if (message.messageType !== 'poll' || !message.poll) {
+      return res.status(400).json({ success: false, message: 'Message is not an active poll' });
+    }
+
+    const conversation = await Conversation.findById(message.conversationId);
+    if (!conversation) {
+      return res.status(404).json({ success: false, message: 'Conversation not found' });
+    }
+
+    const isParticipant = conversation.participants.some(
+      (p) => p.toString() === currentUserId.toString()
+    );
+    if (!isParticipant) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    const options = message.poll.options;
+    if (optionIndex < 0 || optionIndex >= options.length) {
+      return res.status(400).json({ success: false, message: 'Invalid optionIndex' });
+    }
+
+    const allowMultiple = Boolean(message.poll.allowMultipleAnswers);
+    const userStr = currentUserId.toString();
+
+    if (!allowMultiple) {
+      const hasVotedThis = options[optionIndex].votes.some((v) => v.toString() === userStr);
+      options.forEach((opt) => {
+        opt.votes = opt.votes.filter((v) => v.toString() !== userStr);
+      });
+      if (!hasVotedThis) {
+        options[optionIndex].votes.push(currentUserId);
+      }
+    } else {
+      const hasVotedThis = options[optionIndex].votes.some((v) => v.toString() === userStr);
+      if (hasVotedThis) {
+        options[optionIndex].votes = options[optionIndex].votes.filter((v) => v.toString() !== userStr);
+      } else {
+        options[optionIndex].votes.push(currentUserId);
+      }
+    }
+
+    message.markModified('poll');
+    await message.save();
+
+    const populated = await Message.findById(message._id)
+      .populate('senderId', 'username email profilePicture')
+      .populate({
+        path: 'replyTo',
+        populate: { path: 'senderId', select: 'username' },
+      });
+
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`conv:${message.conversationId}`).emit('poll_updated', {
+        conversationId: message.conversationId,
+        message: populated,
+      });
+    }
+
+    res.json({
+      success: true,
+      data: populated,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getMessages,
   sendMessage,
@@ -533,4 +635,5 @@ module.exports = {
   uploadAttachments,
   toggleReaction,
   clearConversationHistory,
+  votePoll,
 };

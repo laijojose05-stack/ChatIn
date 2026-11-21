@@ -35,6 +35,7 @@
       <button class="filter-pill" data-filter="direct">Direct</button>
       <button class="filter-pill" data-filter="group">Groups</button>
       <button class="filter-pill" data-filter="unread">Unread</button>
+      <button class="filter-pill" data-filter="starred"><i class="bi bi-star-fill text-warning me-1"></i>Starred</button>
     </div>
 
     <!-- Conversations List (WhatsApp style: always loaded without blank loading screen) -->
@@ -244,6 +245,10 @@
             <i class="bi bi-paperclip fs-5"></i>
             <input type="file" id="fileInput" class="d-none">
           </label>
+
+          <button type="button" class="btn btn-icon text-muted" id="createPollBtn" title="Create Poll">
+            <i class="bi bi-bar-chart-line fs-5"></i>
+          </button>
 
           <div class="input-wrap flex-grow-1">
             <input type="text" id="messageInput" class="form-control composer-input" placeholder="Type a message" autocomplete="off">
@@ -929,6 +934,81 @@
     <button type="button" class="btn btn-outline-secondary w-100 rounded-pill py-2 mt-3 fw-semibold" id="sheetCancelBtn">
       Cancel
     </button>
+  </div>
+</div>
+
+<!-- DESKTOP MESSAGE CONTEXT MENU (WhatsApp Web Neumorphic Floating Menu) -->
+<div class="desktop-msg-menu d-none" id="desktopMsgMenu">
+  <!-- Quick Emoji Reactions Strip -->
+  <div class="desktop-menu-reactions d-flex align-items-center gap-1 p-1 mb-1 border-bottom">
+    <button type="button" class="desktop-react-btn" data-emoji="👍" title="Thumbs up">👍</button>
+    <button type="button" class="desktop-react-btn" data-emoji="❤️" title="Heart">❤️</button>
+    <button type="button" class="desktop-react-btn" data-emoji="😂" title="Laugh">😂</button>
+    <button type="button" class="desktop-react-btn" data-emoji="😮" title="Surprised">😮</button>
+    <button type="button" class="desktop-react-btn" data-emoji="😢" title="Sad">😢</button>
+    <button type="button" class="desktop-react-btn" data-emoji="🙏" title="Pray / Thanks">🙏</button>
+  </div>
+  <div class="desktop-menu-items d-flex flex-column">
+    <button type="button" class="desktop-menu-item" id="desktopMenuReplyBtn">
+      <i class="bi bi-reply-fill text-primary"></i><span>Reply</span>
+    </button>
+    <button type="button" class="desktop-menu-item" id="desktopMenuCopyBtn">
+      <i class="bi bi-clipboard"></i><span>Copy Text</span>
+    </button>
+    <button type="button" class="desktop-menu-item" id="desktopMenuStarBtn">
+      <i class="bi bi-star text-warning"></i><span>Star Message</span>
+    </button>
+    <button type="button" class="desktop-menu-item" id="desktopMenuPinBtn">
+      <i class="bi bi-pin-angle text-info"></i><span>Pin to Top</span>
+    </button>
+    <button type="button" class="desktop-menu-item text-danger d-none" id="desktopMenuDeleteBtn">
+      <i class="bi bi-trash3 text-danger"></i><span class="text-danger fw-semibold">Delete for Everyone</span>
+    </button>
+  </div>
+</div>
+
+<!-- CREATE POLL MODAL (Neumorphic Modal) -->
+<div class="modal fade" id="createPollModal" tabindex="-1" aria-labelledby="createPollModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 neu-modal">
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title fw-bold" id="createPollModalLabel"><i class="bi bi-bar-chart-fill text-success me-2"></i>Create Poll</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="createPollForm">
+          <div class="mb-3">
+            <label class="form-label extra-small fw-bold text-uppercase text-secondary">Question</label>
+            <input type="text" class="form-control neu-input" id="pollQuestionInput" placeholder="Ask a question..." required maxlength="250">
+          </div>
+          <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <label class="form-label extra-small fw-bold text-uppercase text-secondary mb-0">Options</label>
+              <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 extra-small fw-bold text-success" id="addPollOptionBtn">+ Add Option</button>
+            </div>
+            <div id="pollOptionsContainer" class="d-flex flex-column gap-2">
+              <div class="input-group">
+                <span class="input-group-text bg-transparent border-0 text-secondary">1</span>
+                <input type="text" class="form-control neu-input poll-option-input" placeholder="Option 1" required maxlength="100">
+              </div>
+              <div class="input-group">
+                <span class="input-group-text bg-transparent border-0 text-secondary">2</span>
+                <input type="text" class="form-control neu-input poll-option-input" placeholder="Option 2" required maxlength="100">
+              </div>
+            </div>
+            <div class="extra-small text-muted mt-1">Add up to 6 options</div>
+          </div>
+          <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" id="pollMultipleAnswersSwitch">
+            <label class="form-check-label small" for="pollMultipleAnswersSwitch">Allow multiple answers</label>
+          </div>
+          <div class="d-flex justify-content-end gap-2 pt-2 border-top">
+            <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-whatsapp-primary rounded-pill px-4" id="submitCreatePollBtn">Send Poll</button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </div>
 
