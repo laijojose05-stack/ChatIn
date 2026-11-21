@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeConversation = null;
   let conversations = [];
   let currentFilter = 'all';
+  let callHistoryFilter = 'all';
   let pendingAttachment = null;
   let typingTimeout = null;
 
@@ -264,6 +265,18 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('user_offline', ({ userId }) => {
       updateUserOnlineBadge(userId, false);
     });
+
+    // Real-time call history update
+    socket.on('call:history_updated', () => {
+      if (currentFilter === 'calls') {
+        renderCallHistoryList();
+      }
+    });
+    socket.on('call:ended', () => {
+      if (currentFilter === 'calls') {
+        renderCallHistoryList();
+      }
+    });
   }
 
   // 2. Fetch and Render Conversations (WhatsApp style: silent background sync without loading flash)
@@ -307,6 +320,184 @@ document.addEventListener('DOMContentLoaded', () => {
     return c.conversationType === 'group' || Boolean(c.isGroup);
   }
 
+  async function renderCallHistoryList() {
+    if (!conversationsList) return;
+    conversationsList.innerHTML = `
+      <div class="calls-header-bar">
+        <div class="d-flex align-items-center gap-1">
+          <button class="btn btn-sm ${callHistoryFilter === 'all' ? 'btn-success fw-bold' : 'btn-outline-secondary'} rounded-pill py-0 px-2 extra-small" id="callFilterAllBtn">All</button>
+          <button class="btn btn-sm ${callHistoryFilter === 'missed' ? 'btn-danger fw-bold' : 'btn-outline-secondary'} rounded-pill py-0 px-2 extra-small" id="callFilterMissedBtn">Missed</button>
+        </div>
+        <button class="btn btn-sm btn-link text-muted text-decoration-none extra-small" id="clearCallHistoryBtn" title="Clear call history">
+          <i class="bi bi-trash3 me-1"></i>Clear
+        </button>
+      </div>
+      <div class="text-center text-muted small py-4" id="callsLoadingSpinner">
+        <div class="spinner-border spinner-border-sm text-secondary mb-2" role="status"></div>
+        <div>Loading call history...</div>
+      </div>
+    `;
+
+    document.getElementById('callFilterAllBtn')?.addEventListener('click', () => {
+      callHistoryFilter = 'all';
+      renderCallHistoryList();
+    });
+    document.getElementById('callFilterMissedBtn')?.addEventListener('click', () => {
+      callHistoryFilter = 'missed';
+      renderCallHistoryList();
+    });
+    document.getElementById('clearCallHistoryBtn')?.addEventListener('click', async () => {
+      if (!confirm('Clear your call log?')) return;
+      try {
+        await fetch('/api/calls/history/all', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        renderCallHistoryList();
+      } catch (e) {
+        console.error('Failed to clear calls:', e);
+      }
+    });
+
+    try {
+      const res = await fetch(`/api/calls/history?filter=${callHistoryFilter}`, {
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const json = await res.json();
+      const calls = json.success && Array.isArray(json.data) ? json.data : [];
+
+      const searchQuery = conversationSearchInput ? conversationSearchInput.value.trim().toLowerCase() : '';
+      const filteredCalls = searchQuery
+        ? calls.filter((c) => (c.peer?.username || '').toLowerCase().includes(searchQuery))
+        : calls;
+
+      const spinner = document.getElementById('callsLoadingSpinner');
+      if (spinner) spinner.remove();
+
+      if (filteredCalls.length === 0) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'text-center text-muted small py-5 px-3';
+        emptyDiv.innerHTML = `
+          <i class="bi bi-telephone-x fs-2 d-block mb-2 text-secondary opacity-75"></i>
+          <div class="fw-semibold">${callHistoryFilter === 'missed' ? 'No missed calls' : 'No call history yet'}</div>
+          <div class="extra-small opacity-75 mt-1">Audio and video calls with your contacts will appear here.</div>
+        `;
+        conversationsList.appendChild(emptyDiv);
+        return;
+      }
+
+      filteredCalls.forEach((call) => {
+        const item = document.createElement('div');
+        item.className = `call-item ${call.isMissed ? 'missed' : ''}`;
+
+        const peerName = escapeHtml(call.peer?.username || 'Unknown Contact');
+        const avatarLetter = (peerName.charAt(0) || 'U').toUpperCase();
+        const pic = call.peer?.profilePicture;
+        const avatarHtml = pic
+          ? `<img src="${pic}" class="w-100 h-100 rounded-circle object-fit-cover" alt="${peerName}">`
+          : `<span>${avatarLetter}</span>`;
+
+        let dirIcon = '';
+        let dirClass = '';
+        let dirLabel = '';
+        if (call.direction === 'missed') {
+          dirIcon = 'bi-arrow-down-left';
+          dirClass = 'missed';
+          dirLabel = 'Missed';
+        } else if (call.direction === 'incoming') {
+          dirIcon = 'bi-arrow-down-left';
+          dirClass = 'incoming';
+          dirLabel = 'Incoming';
+        } else {
+          dirIcon = 'bi-arrow-up-right';
+          dirClass = 'outgoing';
+          dirLabel = 'Outgoing';
+        }
+
+        let durText = '';
+        if (call.duration > 0) {
+          const m = Math.floor(call.duration / 60);
+          const s = call.duration % 60;
+          durText = m > 0 ? ` (${m}m ${s}s)` : ` (${s}s)`;
+        }
+
+        const timeStr = formatTimestamp(call.createdAt);
+        const isVideo = call.callType === 'video';
+
+        item.innerHTML = `
+          <div class="call-item-avatar">
+            ${avatarHtml}
+          </div>
+          <div class="flex-grow-1 overflow-hidden min-w-0">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <span class="fw-bold text-truncate ${call.isMissed ? 'text-danger' : ''}">${peerName}</span>
+              <span class="extra-small text-muted">${timeStr}</span>
+            </div>
+            <div class="extra-small text-secondary d-flex align-items-center">
+              <i class="bi ${dirIcon} call-direction-icon ${dirClass}"></i>
+              <span>${dirLabel} ${isVideo ? 'video' : 'voice'} call${durText}</span>
+            </div>
+          </div>
+          <div class="d-flex align-items-center gap-2 flex-shrink-0" onclick="event.stopPropagation()">
+            <button class="call-action-icon-btn redial-btn" title="Call back (${isVideo ? 'Video' : 'Audio'})">
+              <i class="bi ${isVideo ? 'bi-camera-video-fill text-info' : 'bi-telephone-fill text-success'}"></i>
+            </button>
+            <button class="call-action-icon-btn delete-log-btn" title="Remove from log">
+              <i class="bi bi-x text-muted fs-6"></i>
+            </button>
+          </div>
+        `;
+
+        item.querySelector('.redial-btn')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (call.peer && call.peer._id && window.ChatInCall && window.ChatInCall.startCall) {
+            window.ChatInCall.startCall(call.peer, call.callType || 'audio', call.conversationId);
+          }
+        });
+
+        item.querySelector('.delete-log-btn')?.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          try {
+            await fetch(`/api/calls/history/${call._id}`, {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+            });
+            renderCallHistoryList();
+          } catch (e) {
+            console.error('Failed to delete call log:', e);
+          }
+        });
+
+        item.addEventListener('click', () => {
+          if (call.conversationId) {
+            const targetConv = conversations.find((c) => c._id === call.conversationId);
+            if (targetConv) {
+              selectConversation(targetConv);
+              return;
+            }
+          }
+          if (call.peer && call.peer._id) {
+            const targetConv = conversations.find((c) => {
+              if (isGroupConv(c)) return false;
+              return (c.participants || []).some((p) => (p._id || p).toString() === call.peer._id.toString());
+            });
+            if (targetConv) {
+              selectConversation(targetConv);
+            }
+          }
+        });
+
+        conversationsList.appendChild(item);
+      });
+    } catch (err) {
+      console.error('Error fetching call history:', err);
+      const spinner = document.getElementById('callsLoadingSpinner');
+      if (spinner) {
+        spinner.innerHTML = '<span class="text-danger">Failed to load calls</span>';
+      }
+    }
+  }
+
   function renderFilteredConversations() {
     if (!conversationsList) return;
 
@@ -314,7 +505,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchQuery = conversationSearchInput ? conversationSearchInput.value.trim().toLowerCase() : '';
 
     // Apply Filter Tab
-    if (currentFilter === 'direct') {
+    if (currentFilter === 'calls') {
+      renderCallHistoryList();
+      return;
+    } else if (currentFilter === 'direct') {
       list = list.filter((c) => !isGroupConv(c));
     } else if (currentFilter === 'group') {
       list = list.filter((c) => isGroupConv(c));
@@ -464,9 +658,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // 3. Filter Tabs Listener
   document.querySelectorAll('.filter-pill').forEach((pill) => {
     pill.addEventListener('click', (e) => {
+      const pillBtn = e.currentTarget || e.target.closest('.filter-pill');
+      if (!pillBtn) return;
       document.querySelectorAll('.filter-pill').forEach((p) => p.classList.remove('active'));
-      e.target.classList.add('active');
-      currentFilter = e.target.dataset.filter || 'all';
+      pillBtn.classList.add('active');
+      currentFilter = pillBtn.dataset.filter || 'all';
       renderFilteredConversations();
     });
   });
@@ -779,6 +975,24 @@ document.addEventListener('DOMContentLoaded', () => {
     getActiveConversation: () => activeConversation,
     getOtherUser: (conv) => getOtherParticipant(conv || activeConversation),
     showToast,
+  };
+
+  window.redialCallInActiveChat = function(callType = 'audio') {
+    if (!activeConversation) return;
+    const currentUserId = (currentUser._id || '').toString();
+    const participants = activeConversation.participants || [];
+    const otherUser = participants.find((p) => {
+      const pId = (p._id || p).toString();
+      return pId !== currentUserId;
+    });
+    if (!otherUser) {
+      if (typeof showToast === 'function') showToast('Could not find participant to call.');
+      else alert('Could not find participant to call.');
+      return;
+    }
+    if (window.ChatInCall && window.ChatInCall.startCall) {
+      window.ChatInCall.startCall(otherUser, callType, activeConversation._id);
+    }
   };
 
   // Reply State
@@ -2313,7 +2527,57 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!messagesStream) return;
 
     // Deduplication check: if message already rendered, don't append again
-    if (msg._id && document.querySelector(`.message-row[data-id="${msg._id}"]`)) {
+    if (msg._id && document.querySelector(`[data-id="${msg._id}"]`)) {
+      return;
+    }
+
+    if (msg.messageType === 'system') {
+      if (checkDate) {
+        const msgDate = new Date(msg.createdAt || Date.now());
+        const msgDateStr = msgDate.toDateString();
+        const lastRow = messagesStream.querySelector('.message-row:last-of-type, .system-message-row:last-of-type');
+        const lastTime = lastRow ? lastRow.dataset.time : null;
+        const lastDateStr = lastTime ? new Date(lastTime).toDateString() : null;
+        if (!lastDateStr || lastDateStr !== msgDateStr) {
+          const sep = document.createElement('div');
+          sep.className = 'chat-date-separator';
+          sep.innerHTML = `<span class="date-badge">${formatDateSeparator(msg.createdAt || Date.now())}</span>`;
+          messagesStream.appendChild(sep);
+        }
+      }
+
+      const content = msg.content || '';
+      const isCall = content.includes('call') || content.includes('Call') || content.includes('📞') || content.includes('📹');
+      const isMissed = content.toLowerCase().includes('missed');
+      const isVideo = content.toLowerCase().includes('video');
+      const callType = isVideo ? 'video' : 'audio';
+
+      const sysRow = document.createElement('div');
+      sysRow.className = 'text-center my-2 system-message-row';
+      if (msg._id) sysRow.dataset.id = msg._id;
+      if (msg.createdAt) sysRow.dataset.time = msg.createdAt;
+
+      if (isCall) {
+        sysRow.innerHTML = `
+          <div class="chat-call-badge ${isMissed ? 'missed' : ''}">
+            <i class="bi ${isVideo ? 'bi-camera-video-fill text-info' : (isMissed ? 'bi-telephone-x-fill text-danger' : 'bi-telephone-fill text-success')}"></i>
+            <span>${escapeHtml(content)}</span>
+            <span class="text-muted extra-small ms-1">${formatTimestamp(msg.createdAt)}</span>
+            ${activeConversation && !isGroupConv(activeConversation) ? `
+              <button class="chat-call-redial-btn ms-2" onclick="window.redialCallInActiveChat('${callType}')">
+                <i class="bi ${isVideo ? 'bi-camera-video-fill' : 'bi-telephone-fill'} me-1"></i>Call back
+              </button>
+            ` : ''}
+          </div>
+        `;
+      } else {
+        sysRow.innerHTML = `
+          <span class="system-badge small text-muted px-3 py-1 rounded-pill" style="background: var(--neu-inset-sm); font-size: 0.78rem;">
+            ${escapeHtml(content)}
+          </span>
+        `;
+      }
+      messagesStream.appendChild(sysRow);
       return;
     }
 

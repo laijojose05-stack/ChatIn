@@ -7,6 +7,8 @@ router.use(protect);
 
 router.post('/initiate', callController.initiateCall);
 router.get('/incoming', callController.checkIncomingCall);
+router.get('/history', callController.getCallHistory);
+router.delete('/history/:callId?', callController.deleteCallHistory);
 router.get('/sync/:callId', callController.getCallSync);
 router.post('/accept/:callId', callController.acceptCall);
 router.post('/reject/:callId', callController.rejectCall);

@@ -56,16 +56,25 @@ const callSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    duration: {
+      type: Number, // in seconds
+      default: 0,
+    },
+    deletedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
   },
   {
     timestamps: true,
   }
 );
 
-// Auto-expire old call sessions after 15 minutes to keep DB clean
-callSchema.index({ createdAt: 1 }, { expireAfterSeconds: 900 });
 callSchema.index({ receiver: 1, status: 1 });
 callSchema.index({ caller: 1, status: 1 });
+callSchema.index({ createdAt: -1 });
 
 const Call = mongoose.model('Call', callSchema);
 module.exports = Call;

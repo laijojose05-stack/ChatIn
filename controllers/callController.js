@@ -158,6 +158,7 @@ exports.rejectCall = async (req, res) => {
       call.status = 'rejected';
       call.rejectReason = reason || 'declined';
       call.endedAt = new Date();
+      call.duration = 0;
       await call.save();
 
       const io = req.app.get('io');
@@ -167,6 +168,27 @@ exports.rejectCall = async (req, res) => {
           callId: call._id,
           reason: call.rejectReason,
         });
+        io.to(`user:${call.caller}`).emit('call:history_updated');
+        io.to(`user:${call.receiver}`).emit('call:history_updated');
+      }
+
+      // Record system missed call message in conversation if applicable
+      if (call.conversation) {
+        try {
+          const Message = require('../models/Message');
+          const isVideo = call.callType === 'video';
+          const sysMsg = await Message.create({
+            conversationId: call.conversation,
+            senderId: call.caller,
+            content: `${isVideo ? '📹 Missed video call' : '📞 Missed voice call'}`,
+            messageType: 'system',
+            readBy: [{ user: call.caller, readAt: new Date() }],
+            deliveredTo: [{ user: call.caller, deliveredAt: new Date() }],
+          });
+          if (io) {
+            io.to(`conv:${call.conversation}`).emit('receive_message', sysMsg);
+          }
+        } catch (e) {}
       }
     }
 
@@ -221,6 +243,9 @@ exports.endCall = async (req, res) => {
     if (call) {
       call.status = 'ended';
       call.endedAt = new Date();
+      if (call.createdAt) {
+        call.duration = Math.max(0, Math.round((call.endedAt.getTime() - new Date(call.createdAt).getTime()) / 1000));
+      }
       await call.save();
 
       const io = req.app.get('io');
@@ -230,11 +255,133 @@ exports.endCall = async (req, res) => {
           callId: call._id,
           userId,
         });
+        io.to(`user:${call.caller}`).emit('call:history_updated');
+        io.to(`user:${call.receiver}`).emit('call:history_updated');
+      }
+
+      // Record system call message in conversation
+      if (call.conversation) {
+        try {
+          const Message = require('../models/Message');
+          const isVideo = call.callType === 'video';
+          const dur = call.duration || 0;
+          const durStr = dur > 0 ? `${Math.floor(dur / 60)}m ${dur % 60}s` : 'Call ended';
+          const sysMsg = await Message.create({
+            conversationId: call.conversation,
+            senderId: call.caller,
+            content: `${isVideo ? '📹 Video call' : '📞 Voice call'} • ${durStr}`,
+            messageType: 'system',
+            readBy: [{ user: call.caller, readAt: new Date() }],
+            deliveredTo: [{ user: call.caller, deliveredAt: new Date() }],
+          });
+          if (io) {
+            io.to(`conv:${call.conversation}`).emit('receive_message', sysMsg);
+          }
+        } catch (e) {}
       }
     }
 
     res.status(200).json({ success: true, message: 'Call ended' });
   } catch (err) {
     res.status(500).json({ success: false });
+  }
+};
+
+// Get Call History
+exports.getCallHistory = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { filter } = req.query; // 'all' or 'missed'
+
+    const query = {
+      $or: [{ caller: userId }, { receiver: userId }],
+      deletedBy: { $ne: userId },
+    };
+
+    if (filter === 'missed') {
+      query.receiver = userId;
+      query.$or = [
+        { status: 'rejected' },
+        { status: 'calling' },
+        { rejectReason: { $ne: null } },
+        { status: 'ended', duration: { $lte: 0 } },
+      ];
+    }
+
+    const calls = await Call.find(query)
+      .sort({ createdAt: -1 })
+      .limit(60)
+      .populate('caller', '_id username profilePicture isOnline')
+      .populate('receiver', '_id username profilePicture isOnline')
+      .populate('conversation', '_id conversationType groupName isGroup');
+
+    const formatted = calls.map((c) => {
+      const isCaller = c.caller && c.caller._id && c.caller._id.toString() === userId.toString();
+      const peer = isCaller ? c.receiver : c.caller;
+      const isMissed = !isCaller && (
+        c.status === 'rejected' ||
+        c.status === 'calling' ||
+        Boolean(c.rejectReason) ||
+        (c.status === 'ended' && (!c.duration || c.duration <= 0))
+      );
+
+      let direction = 'outgoing';
+      if (!isCaller) {
+        direction = isMissed ? 'missed' : 'incoming';
+      }
+
+      return {
+        _id: c._id,
+        callType: c.callType || 'audio',
+        status: c.status,
+        direction,
+        isMissed,
+        duration: c.duration || 0,
+        createdAt: c.createdAt,
+        endedAt: c.endedAt,
+        conversationId: c.conversation ? c.conversation._id : null,
+        peer: {
+          _id: peer ? peer._id : null,
+          username: peer ? peer.username : 'Unknown Contact',
+          profilePicture: peer ? peer.profilePicture || '' : '',
+          isOnline: Boolean(peer ? peer.isOnline : false),
+        },
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      data: formatted,
+    });
+  } catch (err) {
+    console.error('Error in getCallHistory:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to fetch call history' });
+  }
+};
+
+// Clear or delete call from history
+exports.deleteCallHistory = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { callId } = req.params;
+
+    if (callId && callId !== 'all') {
+      await Call.findByIdAndUpdate(callId, {
+        $addToSet: { deletedBy: userId },
+      });
+    } else {
+      await Call.updateMany(
+        { $or: [{ caller: userId }, { receiver: userId }] },
+        { $addToSet: { deletedBy: userId } }
+      );
+    }
+
+    res.status(200).json({
+      success: true,
+      message: callId && callId !== 'all' ? 'Call record removed' : 'Call history cleared',
+    });
+  } catch (err) {
+    console.error('Error in deleteCallHistory:', err.message);
+    res.status(500).json({ success: false, message: 'Failed to delete call history' });
   }
 };
