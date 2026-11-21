@@ -1,30 +1,30 @@
 /* ==========================================================================
-   ChatIn Design Tokens & Themes (WhatsApp-Style Clean Dark & Crisp Light)
+   ChatIn Design Tokens & Themes (Modern Neumorphic Soft UI)
    ========================================================================== */
 
 :root {
   --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
-  --radius-xs: 6px;
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
+  --radius-xs: 8px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 30px;
   --radius-pill: 9999px;
 
-  /* WhatsApp Emerald / Teal Accent Tokens */
-  --accent-primary: #00a884;
-  --accent-secondary: #25d366;
-  --accent-hover: #00c298;
-  --accent-active: #008f6f;
-  --accent-gradient: linear-gradient(135deg, #00a884 0%, #128c7e 100%);
-  --accent-glow: rgba(0, 168, 132, 0.35);
+  /* Vibrant Neumorphic Accent Tokens */
+  --accent-primary: #00b894;
+  --accent-secondary: #00cec9;
+  --accent-hover: #00d2aa;
+  --accent-active: #00a383;
+  --accent-gradient: linear-gradient(135deg, #00b894 0%, #0984e3 100%);
+  --accent-glow: rgba(0, 184, 148, 0.35);
 
-  --status-online: #25d366;
+  --status-online: #00b894;
   --status-offline: #8696a0;
-  --status-warning: #f59e0b;
-  --status-danger: #ea4335;
-  --status-read-ticks: #53bdeb;
+  --status-warning: #f39c12;
+  --status-danger: #e74c3c;
+  --status-read-ticks: #0984e3;
 
   --transition-fast: 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   --transition-normal: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -32,105 +32,127 @@
 }
 
 /* ==========================================================================
-   1. WHATSAPP PREMIUM OBSIDIAN DARK THEME
+   1. NEUMORPHIC DARK THEME (Soft Charcoal Slate UI)
    ========================================================================== */
 [data-theme="dark"],
 [data-bs-theme="dark"] {
-  --bg-app: #0c1317;
-  --bg-sidebar: #111b21;
-  --bg-sidebar-glass: rgba(17, 27, 33, 0.85);
-  --bg-chat: #0b141a;
-  --bg-card: #202c33;
-  --bg-card-hover: #222e35;
-  --bg-card-active: #2a3942;
-  --bg-input: #202c33;
-  --bg-input-focus: #2a3942;
-  --bg-floating: rgba(32, 44, 51, 0.92);
+  --bg-app: #20242c;
+  --bg-sidebar: #20242c;
+  --bg-sidebar-glass: #20242c;
+  --bg-chat: #20242c;
+  --bg-card: #20242c;
+  --bg-card-hover: #242932;
+  --bg-card-active: #1c2027;
+  --bg-input: #20242c;
+  --bg-input-focus: #1c2027;
+  --bg-floating: #20242c;
 
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-subtle: rgba(255, 255, 255, 0.04);
-  --border-focus: #00a884;
+  --border-color: rgba(255, 255, 255, 0.04);
+  --border-subtle: rgba(255, 255, 255, 0.02);
+  --border-focus: #00b894;
 
-  --text-primary: #e9edef;
-  --text-secondary: #8696a0;
-  --text-muted: #667781;
-  --text-inverse: #111b21;
+  --text-primary: #e8edf4;
+  --text-secondary: #96a2b4;
+  --text-muted: #687487;
+  --text-inverse: #20242c;
+
+  /* Neumorphic Dual Shadows (Dark) */
+  --neu-flat: #20242c;
+  --neu-raised: 6px 6px 14px #15181e, -6px -6px 14px #2b303a;
+  --neu-raised-sm: 3px 3px 8px #15181e, -3px -3px 8px #2b303a;
+  --neu-raised-lg: 12px 12px 28px #13151b, -12px -12px 28px #2d333d;
+  --neu-inset: inset 3px 3px 7px #15181e, inset -3px -3px 7px #2b303a;
+  --neu-inset-sm: inset 2px 2px 4px #15181e, inset -2px -2px 4px #2b303a;
+  --neu-convex: linear-gradient(145deg, #22272f, #1e2128);
+  --neu-concave: linear-gradient(145deg, #1e2128, #22272f);
+  --neu-border: rgba(255, 255, 255, 0.04);
 
   /* Bootstrap 5 Overrides */
-  --bs-body-color: #e9edef !important;
-  --bs-body-bg: #0c1317 !important;
-  --bs-secondary-color: #8696a0 !important;
-  --bs-secondary-color-rgb: 134, 150, 160 !important;
-  --bs-tertiary-color: #667781 !important;
-  --bs-tertiary-bg: #202c33 !important;
-  --bs-border-color: rgba(255, 255, 255, 0.08) !important;
-  --bs-border-color-translucent: rgba(255, 255, 255, 0.06) !important;
+  --bs-body-color: #e8edf4 !important;
+  --bs-body-bg: #20242c !important;
+  --bs-secondary-color: #96a2b4 !important;
+  --bs-secondary-color-rgb: 150, 162, 180 !important;
+  --bs-tertiary-color: #687487 !important;
+  --bs-tertiary-bg: #20242c !important;
+  --bs-border-color: rgba(255, 255, 255, 0.04) !important;
+  --bs-border-color-translucent: rgba(255, 255, 255, 0.03) !important;
   --bs-emphasis-color: #ffffff !important;
 
-  /* WhatsApp Iconic Message Bubbles */
-  --bubble-sent: #005c4b;
-  --bubble-sent-gradient: linear-gradient(135deg, #005c4b 0%, #006653 100%);
-  --bubble-sent-text: #e9edef;
-  --bubble-received: #202c33;
-  --bubble-received-text: #e9edef;
+  /* Neumorphic Message Bubbles */
+  --bubble-sent: linear-gradient(145deg, #15382e, #102d25);
+  --bubble-sent-gradient: linear-gradient(145deg, #15382e 0%, #102d25 100%);
+  --bubble-sent-text: #e8edf4;
+  --bubble-received: #20242c;
+  --bubble-received-text: #e8edf4;
   --bubble-received-border: rgba(255, 255, 255, 0.04);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.6);
-  --shadow-glow: 0 0 24px rgba(0, 168, 132, 0.28);
-  --glass-filter: blur(18px) saturate(160%);
+  --shadow-sm: var(--neu-raised-sm);
+  --shadow-md: var(--neu-raised);
+  --shadow-lg: var(--neu-raised-lg);
+  --shadow-glow: 0 0 24px rgba(0, 184, 148, 0.3);
+  --glass-filter: none;
 }
 
 /* ==========================================================================
-   2. WHATSAPP CRISP LIGHT THEME
+   2. NEUMORPHIC LIGHT THEME (Soft Ceramic Blue-Grey UI)
    ========================================================================== */
 [data-theme="light"],
 [data-bs-theme="light"] {
-  --bg-app: #f0f2f5;
-  --bg-sidebar: #ffffff;
-  --bg-sidebar-glass: rgba(255, 255, 255, 0.88);
-  --bg-chat: #efeae2;
-  --bg-card: #ffffff;
-  --bg-card-hover: #f5f6f6;
-  --bg-card-active: #e9edef;
-  --bg-input: #f0f2f5;
-  --bg-input-focus: #ffffff;
-  --bg-floating: rgba(255, 255, 255, 0.94);
+  --bg-app: #e6ecf4;
+  --bg-sidebar: #e6ecf4;
+  --bg-sidebar-glass: #e6ecf4;
+  --bg-chat: #e6ecf4;
+  --bg-card: #e6ecf4;
+  --bg-card-hover: #ebf1f9;
+  --bg-card-active: #dce2eb;
+  --bg-input: #e6ecf4;
+  --bg-input-focus: #dce2eb;
+  --bg-floating: #e6ecf4;
 
-  --border-color: rgba(11, 20, 26, 0.08);
-  --border-subtle: rgba(11, 20, 26, 0.04);
-  --border-focus: #008069;
+  --border-color: rgba(0, 0, 0, 0.04);
+  --border-subtle: rgba(0, 0, 0, 0.02);
+  --border-focus: #00b894;
 
-  --text-primary: #111b21;
-  --text-secondary: #54656f;
-  --text-muted: #8696a0;
+  --text-primary: #232d3d;
+  --text-secondary: #5e6e82;
+  --text-muted: #8a99ad;
   --text-inverse: #ffffff;
 
+  /* Neumorphic Dual Shadows (Light) */
+  --neu-flat: #e6ecf4;
+  --neu-raised: 6px 6px 14px #c2c9d4, -6px -6px 14px #ffffff;
+  --neu-raised-sm: 3px 3px 8px #c2c9d4, -3px -3px 8px #ffffff;
+  --neu-raised-lg: 12px 12px 28px #b6beca, -12px -12px 28px #ffffff;
+  --neu-inset: inset 3px 3px 7px #c2c9d4, inset -3px -3px 7px #ffffff;
+  --neu-inset-sm: inset 2px 2px 4px #c2c9d4, inset -2px -2px 4px #ffffff;
+  --neu-convex: linear-gradient(145deg, #f6fcff, #cfd4dc);
+  --neu-concave: linear-gradient(145deg, #cfd4dc, #f6fcff);
+  --neu-border: rgba(255, 255, 255, 0.6);
+
   /* Bootstrap 5 Overrides */
-  --bs-body-color: #111b21 !important;
-  --bs-body-bg: #f0f2f5 !important;
-  --bs-secondary-color: #54656f !important;
-  --bs-secondary-color-rgb: 84, 101, 111 !important;
-  --bs-tertiary-color: #8696a0 !important;
-  --bs-tertiary-bg: #f5f6f6 !important;
-  --bs-border-color: rgba(11, 20, 26, 0.08) !important;
-  --bs-border-color-translucent: rgba(11, 20, 26, 0.06) !important;
-  --bs-emphasis-color: #111b21 !important;
+  --bs-body-color: #232d3d !important;
+  --bs-body-bg: #e6ecf4 !important;
+  --bs-secondary-color: #5e6e82 !important;
+  --bs-secondary-color-rgb: 94, 110, 130 !important;
+  --bs-tertiary-color: #8a99ad !important;
+  --bs-tertiary-bg: #e6ecf4 !important;
+  --bs-border-color: rgba(0, 0, 0, 0.04) !important;
+  --bs-border-color-translucent: rgba(0, 0, 0, 0.03) !important;
+  --bs-emphasis-color: #232d3d !important;
 
-  /* WhatsApp Light Message Bubbles */
-  --bubble-sent: #d9fdd3;
-  --bubble-sent-gradient: linear-gradient(135deg, #d9fdd3 0%, #d4f8ce 100%);
-  --bubble-sent-text: #111b21;
-  --bubble-received: #ffffff;
-  --bubble-received-text: #111b21;
-  --bubble-received-border: rgba(11, 20, 26, 0.06);
+  /* Neumorphic Message Bubbles */
+  --bubble-sent: linear-gradient(145deg, #d3f6df, #beeecb);
+  --bubble-sent-gradient: linear-gradient(145deg, #d3f6df 0%, #beeecb 100%);
+  --bubble-sent-text: #14532d;
+  --bubble-received: #e6ecf4;
+  --bubble-received-text: #232d3d;
+  --bubble-received-border: rgba(255, 255, 255, 0.5);
 
-  --shadow-sm: 0 1px 2px rgba(11, 20, 26, 0.08);
-  --shadow-md: 0 4px 14px rgba(11, 20, 26, 0.1);
-  --shadow-lg: 0 12px 32px rgba(11, 20, 26, 0.12);
-  --shadow-glow: 0 0 20px rgba(0, 128, 105, 0.18);
-  --glass-filter: blur(18px) saturate(180%);
+  --shadow-sm: var(--neu-raised-sm);
+  --shadow-md: var(--neu-raised);
+  --shadow-lg: var(--neu-raised-lg);
+  --shadow-glow: 0 0 20px rgba(0, 184, 148, 0.22);
+  --glass-filter: none;
 }
 
 /* ==========================================================================
@@ -178,54 +200,59 @@ html, body {
 }
 
 /* ==========================================================================
-   Buttons & Micro-Interactions
+   Buttons & Micro-Interactions (Neumorphic Extrusions)
    ========================================================================== */
 .chatin-btn-gradient {
   background: var(--accent-gradient);
   color: #ffffff !important;
   border: none;
   font-weight: 600;
-  box-shadow: 0 4px 14px var(--accent-glow);
+  box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.3), -2px -2px 6px rgba(255, 255, 255, 0.08);
   transition: all var(--transition-normal);
   border-radius: var(--radius-pill);
 }
 
 .chatin-btn-gradient:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px var(--accent-glow);
+  box-shadow: 6px 6px 14px rgba(0, 0, 0, 0.35), -3px -3px 8px rgba(255, 255, 255, 0.12);
   filter: brightness(1.06);
 }
 
 .chatin-btn-gradient:active {
+  box-shadow: inset 2px 2px 5px rgba(0, 0, 0, 0.45);
   transform: scale(0.97);
 }
 
 .btn-icon {
-  background: transparent;
-  border: none;
+  background: var(--neu-flat);
+  border: 1px solid var(--neu-border);
   color: var(--text-secondary);
-  padding: 0.5rem;
-  border-radius: var(--radius-pill);
+  padding: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  box-shadow: var(--neu-raised-sm);
   transition: all var(--transition-fast);
   cursor: pointer;
 }
 
 .btn-icon:hover {
-  color: var(--text-primary);
-  background: var(--bg-card-hover);
+  color: var(--accent-primary);
+  box-shadow: var(--neu-raised);
   transform: translateY(-1px);
 }
 
 .btn-icon:active {
-  transform: scale(0.92);
+  box-shadow: var(--neu-inset-sm);
+  transform: translateY(1px);
 }
 
 .btn-theme-toggle {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: var(--neu-flat);
+  border: 1px solid var(--neu-border);
   color: var(--text-primary);
   border-radius: 50%;
   width: 38px;
@@ -234,14 +261,18 @@ html, body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--neu-raised-sm);
   transition: all var(--transition-fast);
 }
 
 .btn-theme-toggle:hover {
-  border-color: var(--accent-primary);
   color: var(--accent-primary);
+  box-shadow: var(--neu-raised);
   transform: scale(1.05);
+}
+
+.btn-theme-toggle:active {
+  box-shadow: var(--neu-inset-sm);
 }
 
 /* Header & Floating Nav */
@@ -250,11 +281,10 @@ html, body {
 }
 
 .chatin-floating-nav {
-  background: var(--bg-floating);
-  backdrop-filter: var(--glass-filter);
-  -webkit-backdrop-filter: var(--glass-filter);
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-md);
+  background: var(--neu-flat);
+  border: 1px solid var(--neu-border);
+  box-shadow: var(--neu-raised-lg);
+  border-radius: var(--radius-pill);
   transition: all var(--transition-normal);
 }
 
@@ -282,7 +312,7 @@ html, body {
 }
 
 /* ==========================================================================
-   Auth Cards & Split Layout (WhatsApp Glassmorphic Style)
+   Auth Cards & Split Layout (Neumorphic Soft UI)
    ========================================================================== */
 .auth-page-wrapper {
   background: var(--bg-app);
@@ -295,28 +325,13 @@ html, body {
   overflow: hidden;
 }
 
-/* Background Atmospheric Glow */
-.auth-page-wrapper::before {
-  content: '';
-  position: absolute;
-  top: -100px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 700px;
-  height: 500px;
-  background: radial-gradient(circle, rgba(0, 168, 132, 0.15) 0%, rgba(18, 140, 126, 0.05) 50%, transparent 70%);
-  pointer-events: none;
-}
-
 .auth-card {
   width: 100%;
   max-width: 440px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: var(--neu-flat);
+  border: 1px solid var(--neu-border);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg), 0 0 30px rgba(0, 168, 132, 0.08);
-  backdrop-filter: var(--glass-filter);
-  -webkit-backdrop-filter: var(--glass-filter);
+  box-shadow: var(--neu-raised-lg);
   position: relative;
   z-index: 1;
   overflow: hidden;
@@ -344,7 +359,7 @@ html, body {
   justify-content: center;
   color: #fff;
   font-size: 1.6rem;
-  box-shadow: 0 8px 20px var(--accent-glow);
+  box-shadow: var(--neu-raised-sm);
 }
 
 .auth-heading {
@@ -359,18 +374,20 @@ html, body {
   font-size: 0.92rem;
 }
 
-/* Form Inputs */
+/* Form Inputs (Sunken Inset Neumorphic) */
 .form-control, .input-group-text {
-  background-color: var(--bg-input) !important;
-  border: 1px solid var(--border-color) !important;
+  background-color: var(--neu-flat) !important;
+  border: 1px solid var(--neu-border) !important;
+  box-shadow: var(--neu-inset) !important;
+  border-radius: var(--radius-md) !important;
   color: var(--text-primary) !important;
   transition: all var(--transition-fast);
 }
 
 .form-control:focus {
-  background-color: var(--bg-input-focus) !important;
-  border-color: var(--accent-primary) !important;
-  box-shadow: 0 0 0 3px var(--accent-glow) !important;
+  background-color: var(--neu-flat) !important;
+  box-shadow: var(--neu-inset), 0 0 0 2px var(--accent-glow) !important;
+  border-color: transparent !important;
   color: var(--text-primary) !important;
 }
 
@@ -379,30 +396,23 @@ html, body {
 }
 
 .input-group:focus-within {
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  box-shadow: none;
   border-radius: var(--radius-md);
 }
 
-.input-group:focus-within .form-control,
-.input-group:focus-within .input-group-text {
-  border-color: var(--accent-primary) !important;
-}
-
-/* Modals */
+/* Modals (Neumorphic Extruded Modal Surface) */
 .chatin-modal .modal-content {
-  background: var(--bg-card);
-  border: 1px solid var(--border-color);
+  background: var(--neu-flat);
+  border: 1px solid var(--neu-border);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
-  backdrop-filter: var(--glass-filter);
-  -webkit-backdrop-filter: var(--glass-filter);
+  box-shadow: var(--neu-raised-lg);
   overflow: hidden;
 }
 
 .chatin-modal .modal-header {
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--neu-border);
 }
 
 .chatin-modal .modal-footer {
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--neu-border);
 }
