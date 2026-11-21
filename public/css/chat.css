@@ -591,75 +591,9 @@
 }
 
 /* Legacy safety rule - ensure old msg-actions-bar is never visible */
-.msg-actions-bar {
-  display: none !important;
-}
-
-/* Floating Quick Actions beside Message Bubble (Never enters bubble, prevents overflow) */
+.msg-actions-bar,
 .msg-hover-actions {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  display: none;
-  align-items: center;
-  gap: 3px;
-  padding: 3px 6px;
-  background: var(--neu-flat);
-  border: 1px solid var(--neu-border);
-  border-radius: var(--radius-pill);
-  box-shadow: var(--neu-raised);
-  z-index: 10;
-  white-space: nowrap;
-  animation: actionsPop 0.12s ease;
-}
-
-.message-row:hover .msg-hover-actions {
-  display: inline-flex !important;
-}
-
-.message-row.sent .msg-hover-actions {
-  right: calc(100% + 8px);
-}
-
-.message-row.received .msg-hover-actions {
-  left: calc(100% + 8px);
-}
-
-@keyframes actionsPop {
-  from { opacity: 0; transform: translateY(-50%) scale(0.92); }
-  to { opacity: 1; transform: translateY(-50%) scale(1); }
-}
-
-.msg-quick-react-btn,
-.msg-quick-more-btn {
-  background: transparent !important;
-  border: none !important;
-  outline: none !important;
-  color: var(--text-secondary);
-  width: 28px;
-  height: 28px;
-  border-radius: 50% !important;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.95rem;
-  cursor: pointer;
-  padding: 0;
-  transition: all var(--transition-fast);
-}
-
-.msg-quick-react-btn:hover,
-.msg-quick-more-btn:hover {
-  background: var(--neu-flat) !important;
-  box-shadow: var(--neu-raised-sm);
-  color: var(--accent-primary);
-  transform: scale(1.15);
-}
-
-.msg-quick-react-btn:active,
-.msg-quick-more-btn:active {
-  box-shadow: var(--neu-inset-sm);
-  transform: scale(0.95);
+  display: none !important;
 }
 
 /* Desktop Neumorphic Context Menu */

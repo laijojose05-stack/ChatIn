@@ -2495,21 +2495,6 @@ document.addEventListener('DOMContentLoaded', () => {
       reactionsHtml = `<div class="msg-reactions-row" id="reactions-${msg._id}">${pills}</div>`;
     }
 
-    // Clean Hover Actions Bar (Floating safely alongside bubble)
-    let hoverActionsHtml = '';
-    if (!isDeleted && msg._id && !msg._id.toString().startsWith('temp_')) {
-      const escapedCleanText = escapeHtml((contentText || '').replace(/['"]/g, ''));
-      const escapedSender = escapeHtml(senderUsername || (isMine ? 'You' : 'User'));
-      hoverActionsHtml = `
-        <div class="msg-hover-actions">
-          <button type="button" class="msg-quick-react-btn" onclick="window.toggleReaction('${msg._id}', '👍')" title="Thumbs up">👍</button>
-          <button type="button" class="msg-quick-react-btn" onclick="window.toggleReaction('${msg._id}', '❤️')" title="Heart">❤️</button>
-          <button type="button" class="msg-quick-react-btn" onclick="window.startReplyToMessage('${msg._id}', '${escapedSender}', '${escapedCleanText}')" title="Reply"><i class="bi bi-reply-fill"></i></button>
-          <button type="button" class="msg-quick-more-btn" onclick="window.openDesktopMessageMenu(event, '${msg._id}')" title="More options"><i class="bi bi-three-dots"></i></button>
-        </div>
-      `;
-    }
-
     const dropdownChevronHtml = !isDeleted && msg._id && !msg._id.toString().startsWith('temp_')
       ? `<button type="button" class="msg-dropdown-trigger" onclick="window.openDesktopMessageMenu(event, '${msg._id}')" title="Message options"><i class="bi bi-chevron-down"></i></button>`
       : '';
@@ -2529,7 +2514,6 @@ document.addEventListener('DOMContentLoaded', () => {
           </span>
           ${reactionsHtml}
         </div>
-        ${hoverActionsHtml}
       </div>
     `;
 
