@@ -1480,88 +1480,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================================================
-  // Quick Text Formatting Toolbar & Character Counter
+  // Composer Buttons Dynamic Swap (Mic vs Send)
   // ==========================================================================
-  const formatToggleBtn = document.getElementById('formatToggleBtn');
-  const formattingToolbar = document.getElementById('formattingToolbar');
-  const charCounter = document.getElementById('charCounter');
-
-  if (formatToggleBtn && formattingToolbar) {
-    formatToggleBtn.addEventListener('click', () => {
-      const isHidden = formattingToolbar.classList.contains('d-none');
-      if (isHidden) {
-        formattingToolbar.classList.remove('d-none');
-        formattingToolbar.classList.add('d-flex');
-        formatToggleBtn.classList.add('text-primary');
-        formatToggleBtn.classList.remove('text-muted');
-      } else {
-        formattingToolbar.classList.add('d-none');
-        formattingToolbar.classList.remove('d-flex');
-        formatToggleBtn.classList.remove('text-primary');
-        formatToggleBtn.classList.add('text-muted');
-      }
-    });
-
-    document.querySelectorAll('.fmt-btn[data-fmt]').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        if (!messageInput) return;
-        const fmt = btn.dataset.fmt;
-        const start = messageInput.selectionStart || 0;
-        const end = messageInput.selectionEnd || 0;
-        const val = messageInput.value;
-        const selected = val.substring(start, end);
-
-        let before = '';
-        let after = '';
-        let placeholder = '';
-
-        switch (fmt) {
-          case 'bold':
-            before = '*';
-            after = '*';
-            placeholder = 'bold';
-            break;
-          case 'italic':
-            before = '_';
-            after = '_';
-            placeholder = 'italic';
-            break;
-          case 'strike':
-            before = '~';
-            after = '~';
-            placeholder = 'strike';
-            break;
-          case 'code':
-            before = '`';
-            after = '`';
-            placeholder = 'code';
-            break;
-          case 'codeblock':
-            before = '```\n';
-            after = '\n```';
-            placeholder = 'code block';
-            break;
-          case 'quote':
-            before = '> ';
-            after = '';
-            placeholder = 'quote';
-            break;
-          case 'bullet':
-            before = '• ';
-            after = '';
-            placeholder = 'bullet item';
-            break;
-        }
-
-        const insertText = selected || placeholder;
-        const replacement = before + insertText + after;
-        messageInput.value = val.substring(0, start) + replacement + val.substring(end);
-        messageInput.focus();
-        messageInput.setSelectionRange(start + before.length, start + before.length + insertText.length);
-        updateCharCounter();
-      });
-    });
-  }
 
   function syncComposerButtons() {
     const hasText = messageInput && messageInput.value.trim().length > 0;
