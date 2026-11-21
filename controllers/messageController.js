@@ -129,6 +129,11 @@ const sendMessage = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
 
+    const isGroup = conversation.conversationType === 'group' || Boolean(conversation.isGroup);
+    if (pollData && !isGroup) {
+      return res.status(400).json({ success: false, message: 'Polls are only supported in group conversations' });
+    }
+
     const newMessage = await Message.create({
       conversationId,
       senderId: currentUserId,
@@ -571,6 +576,11 @@ const votePoll = async (req, res, next) => {
     );
     if (!isParticipant) {
       return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    const isGroup = conversation.conversationType === 'group' || Boolean(conversation.isGroup);
+    if (!isGroup) {
+      return res.status(400).json({ success: false, message: 'Polls are only supported in group conversations' });
     }
 
     const options = message.poll.options;

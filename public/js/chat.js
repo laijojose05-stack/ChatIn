@@ -518,6 +518,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (activeChatName) activeChatName.textContent = title;
     if (activeChatAvatar) activeChatAvatar.textContent = (title || 'CI').substring(0, 2).toUpperCase();
 
+    // Polls only supported in Group chats (hidden in P2P chats)
+    const createPollBtn = document.getElementById('createPollBtn');
+    if (createPollBtn) {
+      createPollBtn.classList.toggle('d-none', !isGrp);
+    }
+
     if (activeChatStatus) {
       if (isGrp) {
         activeChatStatus.textContent = `${conv.participants?.length || 0} members`;
@@ -2375,7 +2381,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const isDeleted = Boolean(msg.deletedAt || msg.isDeleted);
     const contentText = isDeleted ? 'This message was deleted' : (msg.content || '');
-    const pollHtml = !isDeleted ? renderPollCardHtml(msg) : '';
+    const pollHtml = (!isDeleted && isGrp) ? renderPollCardHtml(msg) : '';
     const formattedHtml = isDeleted ? 'This message was deleted' : (pollHtml ? '' : formatRichMessage(contentText));
 
     // Starred status
@@ -2940,6 +2946,10 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Select a conversation to send a poll');
         return;
       }
+      if (!isGroupConv(activeConversation)) {
+        showToast('Polls are only available in group chats');
+        return;
+      }
       createPollForm?.reset();
       if (pollOptionsContainer) {
         pollOptionsContainer.innerHTML = `
@@ -2980,6 +2990,10 @@ document.addEventListener('DOMContentLoaded', () => {
     createPollForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!activeConversation) return;
+      if (!isGroupConv(activeConversation)) {
+        showToast('Polls are only available in group chats');
+        return;
+      }
 
       const question = document.getElementById('pollQuestionInput')?.value.trim();
       const optionInputs = pollOptionsContainer?.querySelectorAll('.poll-option-input');
