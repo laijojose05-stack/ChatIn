@@ -25,14 +25,17 @@ const messageSchema = new mongoose.Schema(
       default: 'text',
     },
     poll: {
-      question: { type: String, trim: true },
-      options: [
-        {
-          text: { type: String, trim: true },
-          votes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-        },
-      ],
-      allowMultipleAnswers: { type: Boolean, default: false },
+      type: {
+        question: { type: String, trim: true },
+        options: [
+          {
+            text: { type: String, trim: true },
+            votes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+          },
+        ],
+        allowMultipleAnswers: { type: Boolean, default: false },
+      },
+      default: undefined,
     },
     attachments: [
       {

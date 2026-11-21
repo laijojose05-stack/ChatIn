@@ -1109,7 +1109,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // Interactive Real-Time Neumorphic Polls
   // ==========================================================================
   function renderPollCardHtml(msg) {
-    if (!msg || !msg.poll || !Array.isArray(msg.poll.options)) return '';
+    if (
+      !msg ||
+      msg.messageType !== 'poll' ||
+      !msg.poll ||
+      !msg.poll.question ||
+      !Array.isArray(msg.poll.options) ||
+      msg.poll.options.length < 2
+    ) {
+      return '';
+    }
     const poll = msg.poll;
     const currentUserIdStr = (currentUser._id || '').toString();
     const totalVotes = poll.options.reduce((sum, opt) => sum + (opt.votes ? opt.votes.length : 0), 0);
@@ -2446,9 +2455,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const isDeleted = Boolean(msg.deletedAt || msg.isDeleted);
     const contentText = isDeleted ? 'This message was deleted' : (msg.content || '');
-    const isPoll = !isDeleted && (msg.messageType === 'poll' || Boolean(msg.poll));
-    const pollHtml = isPoll ? renderPollCardHtml(msg) : '';
-    const formattedHtml = isDeleted ? 'This message was deleted' : (isPoll ? '' : formatRichMessage(contentText));
+    const pollHtml = !isDeleted ? renderPollCardHtml(msg) : '';
+    const formattedHtml = isDeleted ? 'This message was deleted' : (pollHtml ? '' : formatRichMessage(contentText));
 
     // Starred status
     const isStarred = typeof isMessageStarred === 'function' ? isMessageStarred(msg._id) : false;
