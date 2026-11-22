@@ -12,6 +12,9 @@
       </div>
 
       <div class="d-flex align-items-center gap-1">
+        <button class="btn btn-icon" id="sidebarCallsBtn" title="Call History">
+          <i class="bi bi-telephone"></i>
+        </button>
         <button class="btn btn-icon" id="openNewChatBtn" title="New Direct Message">
           <i class="bi bi-plus-lg"></i>
         </button>
@@ -32,10 +35,10 @@
     <!-- Filter Pills -->
     <div class="filter-tabs px-3 pb-2 d-flex gap-2">
       <button class="filter-pill active" data-filter="all">All</button>
+      <button class="filter-pill" data-filter="calls"><i class="bi bi-telephone-fill text-success me-1"></i>Calls</button>
       <button class="filter-pill" data-filter="direct">Direct</button>
       <button class="filter-pill" data-filter="group">Groups</button>
       <button class="filter-pill" data-filter="unread">Unread</button>
-      <button class="filter-pill" data-filter="calls"><i class="bi bi-telephone-fill text-success me-1"></i>Calls</button>
       <button class="filter-pill" data-filter="starred"><i class="bi bi-star-fill text-warning me-1"></i>Starred</button>
     </div>
 
@@ -332,7 +335,17 @@
         </div>
         <h5 class="fw-bold mb-1 text-truncate" id="contactInfoName">Contact Name</h5>
         <div class="text-muted extra-small mb-2 text-truncate" id="contactInfoEmail">email@example.com</div>
-        <div class="badge bg-body-tertiary text-secondary px-3 py-1 mb-3 rounded-pill extra-small" id="contactInfoStatus">Active Now</div>
+        <div class="badge bg-body-tertiary text-secondary px-3 py-1 mb-2 rounded-pill extra-small" id="contactInfoStatus">Active Now</div>
+
+        <!-- Quick Call Actions -->
+        <div class="d-flex align-items-center justify-content-center gap-2 mb-3" id="contactInfoCallActions">
+          <button type="button" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 extra-small fw-semibold" id="contactInfoVoiceCallBtn">
+            <i class="bi bi-telephone-fill me-1"></i> Voice Call
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-info rounded-pill px-3 py-1 extra-small fw-semibold" id="contactInfoVideoCallBtn">
+            <i class="bi bi-camera-video-fill me-1"></i> Video Call
+          </button>
+        </div>
 
         <!-- Contact Bio -->
         <div class="p-3 rounded-3 bg-body-tertiary text-start mb-3 border">
@@ -348,6 +361,17 @@
           </div>
           <div class="shared-media-grid d-flex gap-2 overflow-x-auto py-1" id="sharedMediaGrid" style="min-height:50px;">
             <div class="text-muted extra-small py-2 text-center w-100">No photos or files shared yet.</div>
+          </div>
+        </div>
+
+        <!-- Recent Calls with Contact -->
+        <div class="text-start mb-3 p-3 rounded-3 bg-body-tertiary border" id="contactCallsSection">
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <span class="extra-small text-muted fw-bold text-uppercase">Recent Calls</span>
+            <span class="extra-small text-muted" id="contactCallsCount">0 calls</span>
+          </div>
+          <div class="d-flex flex-column gap-1" id="contactCallsList" style="max-height: 140px; overflow-y: auto;">
+            <div class="text-muted extra-small py-2 text-center w-100">No call history with this contact yet.</div>
           </div>
         </div>
 

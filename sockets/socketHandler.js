@@ -308,6 +308,8 @@ const registerSocketHandlers = (io) => {
           targetUserId: userId,
           reason: reason || 'declined',
         });
+        io.to(`user:${userId}`).emit('call:history_updated');
+        io.to(`user:${callerId}`).emit('call:history_updated');
       } catch (err) {
         console.error('Error in call:reject:', err.message);
       }
@@ -336,7 +338,9 @@ const registerSocketHandlers = (io) => {
           io.to(`user:${targetUserId}`).emit('call:ended', {
             userId,
           });
+          io.to(`user:${targetUserId}`).emit('call:history_updated');
         }
+        io.to(`user:${userId}`).emit('call:history_updated');
       } catch (err) {
         console.error('Error in call:end:', err.message);
       }

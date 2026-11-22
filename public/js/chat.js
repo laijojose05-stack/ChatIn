@@ -328,9 +328,14 @@ document.addEventListener('DOMContentLoaded', () => {
           <button class="btn btn-sm ${callHistoryFilter === 'all' ? 'btn-success fw-bold' : 'btn-outline-secondary'} rounded-pill py-0 px-2 extra-small" id="callFilterAllBtn">All</button>
           <button class="btn btn-sm ${callHistoryFilter === 'missed' ? 'btn-danger fw-bold' : 'btn-outline-secondary'} rounded-pill py-0 px-2 extra-small" id="callFilterMissedBtn">Missed</button>
         </div>
-        <button class="btn btn-sm btn-link text-muted text-decoration-none extra-small" id="clearCallHistoryBtn" title="Clear call history">
-          <i class="bi bi-trash3 me-1"></i>Clear
-        </button>
+        <div class="d-flex align-items-center gap-1">
+          <button class="btn btn-sm btn-outline-success rounded-pill py-0 px-2 extra-small fw-semibold" id="newCallHistoryBtn" title="Start a new call">
+            <i class="bi bi-telephone-plus me-1"></i>New Call
+          </button>
+          <button class="btn btn-sm btn-link text-muted text-decoration-none extra-small" id="clearCallHistoryBtn" title="Clear call history">
+            <i class="bi bi-trash3"></i>
+          </button>
+        </div>
       </div>
       <div class="text-center text-muted small py-4" id="callsLoadingSpinner">
         <div class="spinner-border spinner-border-sm text-secondary mb-2" role="status"></div>
@@ -345,6 +350,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('callFilterMissedBtn')?.addEventListener('click', () => {
       callHistoryFilter = 'missed';
       renderCallHistoryList();
+    });
+    document.getElementById('newCallHistoryBtn')?.addEventListener('click', () => {
+      document.getElementById('openNewChatBtn')?.click();
     });
     document.getElementById('clearCallHistoryBtn')?.addEventListener('click', async () => {
       if (!confirm('Clear your call log?')) return;
@@ -378,9 +386,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const emptyDiv = document.createElement('div');
         emptyDiv.className = 'text-center text-muted small py-5 px-3';
         emptyDiv.innerHTML = `
-          <i class="bi bi-telephone-x fs-2 d-block mb-2 text-secondary opacity-75"></i>
-          <div class="fw-semibold">${callHistoryFilter === 'missed' ? 'No missed calls' : 'No call history yet'}</div>
-          <div class="extra-small opacity-75 mt-1">Audio and video calls with your contacts will appear here.</div>
+          <div class="mb-3">
+            <span class="d-inline-flex align-items-center justify-content-center rounded-circle p-3" style="background: var(--neu-inset-sm); width: 62px; height: 62px;">
+              <i class="bi bi-telephone fs-3 text-success opacity-75"></i>
+            </span>
+          </div>
+          <div class="fw-bold mb-1">${callHistoryFilter === 'missed' ? 'No missed calls' : 'No call history yet'}</div>
+          <div class="extra-small opacity-75 mb-3" style="max-width: 250px; margin: 0 auto;">
+            Connect with your friends using high-definition audio and video calls.
+          </div>
+          <button class="btn btn-sm btn-success rounded-pill px-3 py-1 fw-semibold extra-small" onclick="document.getElementById('openNewChatBtn')?.click()">
+            <i class="bi bi-telephone-plus me-1"></i> Start a Call
+          </button>
         `;
         conversationsList.appendChild(emptyDiv);
         return;
@@ -2219,11 +2236,107 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
+    // Populate Recent Calls with Contact
+    const contactInfoCallActions = document.getElementById('contactInfoCallActions');
+    const contactCallsSection = document.getElementById('contactCallsSection');
+    const contactCallsList = document.getElementById('contactCallsList');
+    const contactCallsCount = document.getElementById('contactCallsCount');
+
+    if (isGrp) {
+      if (contactInfoCallActions) contactInfoCallActions.classList.add('d-none');
+      if (contactCallsSection) contactCallsSection.classList.add('d-none');
+    } else {
+      if (contactInfoCallActions) contactInfoCallActions.classList.remove('d-none');
+      if (contactCallsSection) contactCallsSection.classList.remove('d-none');
+
+      if (otherUser && otherUser._id && contactCallsList) {
+        contactCallsList.innerHTML = '<div class="text-muted extra-small py-1 text-center">Loading calls...</div>';
+        fetch(`/api/calls/history?filter=all`)
+          .then((r) => r.json())
+          .then((json) => {
+            if (!json.success || !Array.isArray(json.data)) {
+              contactCallsList.innerHTML = '<div class="text-muted extra-small py-1 text-center">No calls recorded.</div>';
+              return;
+            }
+            const peerCalls = json.data.filter(
+              (c) => c.peer && c.peer._id && c.peer._id.toString() === otherUser._id.toString()
+            );
+            if (contactCallsCount) {
+              contactCallsCount.textContent = `${peerCalls.length} call${peerCalls.length === 1 ? '' : 's'}`;
+            }
+            if (peerCalls.length === 0) {
+              contactCallsList.innerHTML = '<div class="text-muted extra-small py-1 text-center">No calls with this contact yet.</div>';
+              return;
+            }
+            contactCallsList.innerHTML = '';
+            peerCalls.slice(0, 5).forEach((call) => {
+              const row = document.createElement('div');
+              row.className = 'd-flex align-items-center justify-content-between p-2 rounded-2 bg-body-secondary small';
+              let dirIcon = call.direction === 'missed' ? 'bi-arrow-down-left text-danger' : (call.direction === 'incoming' ? 'bi-arrow-down-left text-success' : 'bi-arrow-up-right text-info');
+              let isVideo = call.callType === 'video';
+              let dur = call.duration > 0 ? ` (${Math.floor(call.duration / 60)}m ${call.duration % 60}s)` : '';
+              row.innerHTML = `
+                <div class="d-flex align-items-center gap-2 overflow-hidden text-truncate">
+                  <i class="bi ${dirIcon} fw-bold"></i>
+                  <span class="text-truncate">${isVideo ? 'Video call' : 'Voice call'}${dur}</span>
+                </div>
+                <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-2">
+                  <span class="extra-small text-muted">${formatTimestamp(call.createdAt)}</span>
+                  <button type="button" class="btn btn-sm btn-icon p-1" title="Call back" onclick="if (window.ChatInCall) window.ChatInCall.startCall({_id: '${otherUser._id}', username: '${escapeHtml(otherUser.username)}'}, '${call.callType}', '${activeConversation._id}')">
+                    <i class="bi ${isVideo ? 'bi-camera-video-fill text-info' : 'bi-telephone-fill text-success'}"></i>
+                  </button>
+                </div>
+              `;
+              contactCallsList.appendChild(row);
+            });
+          })
+          .catch(() => {
+            if (contactCallsList) contactCallsList.innerHTML = '<div class="text-muted extra-small py-1 text-center">Could not load calls.</div>';
+          });
+      }
+    }
+
     const modal = getModal(contactInfoModalEl);
     if (modal) modal.show();
   }
 
   if (chatInfoBtn) chatInfoBtn.addEventListener('click', openContactInfoModal);
+
+  const contactInfoVoiceCallBtn = document.getElementById('contactInfoVoiceCallBtn');
+  const contactInfoVideoCallBtn = document.getElementById('contactInfoVideoCallBtn');
+  if (contactInfoVoiceCallBtn) {
+    contactInfoVoiceCallBtn.addEventListener('click', () => {
+      if (!activeConversation) return;
+      const otherUser = getOtherParticipant(activeConversation);
+      if (otherUser && window.ChatInCall) {
+        const modal = getModal(contactInfoModalEl);
+        if (modal) modal.hide();
+        window.ChatInCall.startCall(otherUser, 'audio', activeConversation._id);
+      }
+    });
+  }
+  if (contactInfoVideoCallBtn) {
+    contactInfoVideoCallBtn.addEventListener('click', () => {
+      if (!activeConversation) return;
+      const otherUser = getOtherParticipant(activeConversation);
+      if (otherUser && window.ChatInCall) {
+        const modal = getModal(contactInfoModalEl);
+        if (modal) modal.hide();
+        window.ChatInCall.startCall(otherUser, 'video', activeConversation._id);
+      }
+    });
+  }
+
+  const sidebarCallsBtn = document.getElementById('sidebarCallsBtn');
+  if (sidebarCallsBtn) {
+    sidebarCallsBtn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-pill').forEach((p) => p.classList.remove('active'));
+      const callsPill = document.querySelector('.filter-pill[data-filter="calls"]');
+      if (callsPill) callsPill.classList.add('active');
+      currentFilter = 'calls';
+      renderFilteredConversations();
+    });
+  }
 
   if (contactCopyUsernameBtn) {
     contactCopyUsernameBtn.addEventListener('click', () => {
@@ -3306,22 +3419,6 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (err) {
         showToast('Failed to create poll');
       }
-    });
-  }
-
-  // 12. Chat Details Info Button Handler
-  if (chatInfoBtn) {
-    chatInfoBtn.addEventListener('click', () => {
-      if (!activeConversation) return;
-      const isGrp = isGroupConv(activeConversation);
-      const otherUser = getOtherParticipant(activeConversation);
-      const title = isGrp ? activeConversation.groupName : (otherUser ? otherUser.username : 'Chat');
-      const desc = isGrp
-        ? (activeConversation.groupDescription || 'No description provided.')
-        : (otherUser?.bio || 'Hey there! I am using ChatIn.');
-      const membersCount = activeConversation.participants?.length || 1;
-
-      alert(`ℹ️ ${title}\n\n${desc}\n\n${isGrp ? `Members: ${membersCount}` : `Status: ${otherUser?.isOnline ? 'Online' : 'Offline'}`}`);
     });
   }
 
