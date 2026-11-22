@@ -836,3 +836,179 @@
     font-size: 1.45rem !important;
   }
 }
+
+/* ==========================================================================
+   Enterprise Comparison Matrix ("Why Teams Choose ChatIn")
+   ========================================================================== */
+.comparison-section {
+  position: relative;
+  z-index: 2;
+}
+
+.comparison-card {
+  background: var(--neu-flat);
+  border: 1px solid var(--neu-border);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--neu-raised);
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+}
+
+.comparison-table {
+  width: 100%;
+  margin-bottom: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.comparison-table th,
+.comparison-table td {
+  padding: 1.15rem 1.4rem;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--neu-border);
+}
+
+.comparison-table thead th {
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--neu-border);
+}
+
+.comparison-table thead th.chatin-col-highlight {
+  background: rgba(99, 102, 241, 0.08);
+  color: var(--accent-primary);
+  position: relative;
+}
+
+.comparison-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.comparison-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.comparison-table tbody tr:hover td.chatin-col-highlight {
+  background: rgba(99, 102, 241, 0.12);
+}
+
+.comparison-table td.chatin-col-highlight {
+  background: rgba(99, 102, 241, 0.05);
+  font-weight: 600;
+}
+
+.comparison-feature-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.comparison-feature-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+.comparison-pill-winner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #10b981;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.comparison-pill-competitor {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   Enterprise Testimonials Grid
+   ========================================================================== */
+.testimonial-card {
+  background: var(--neu-flat);
+  border: 1px solid var(--neu-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--neu-raised);
+  padding: 2rem;
+  height: 100%;
+  display: flex;
+  flex-column;
+  justify-content: space-between;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.testimonial-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--neu-raised-lg);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.testimonial-quote {
+  font-size: 0.96rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.testimonial-author-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.testimonial-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #fff;
+  box-shadow: var(--neu-raised-sm);
+  flex-shrink: 0;
+}
+
+.testimonial-stars {
+  color: #f59e0b;
+  font-size: 0.85rem;
+  margin-bottom: 0.85rem;
+  display: flex;
+  gap: 0.2rem;
+}
+
+/* Responsive Overrides for Comparison Table */
+@media (max-width: 767.98px) {
+  .comparison-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .comparison-table {
+    min-width: 620px;
+  }
+
+  .comparison-table th,
+  .comparison-table td {
+    padding: 0.85rem 1rem;
+  }
+
+  .testimonial-card {
+    padding: 1.5rem;
+  }
+}
+
