@@ -266,18 +266,35 @@ document.addEventListener('DOMContentLoaded', () => {
       updateUserOnlineBadge(userId, false);
     });
 
-    // Real-time call history update
-    socket.on('call:history_updated', () => {
+    // Real-time call history & calling state sync
+    const syncCallStateAcrossApp = () => {
       if (currentFilter === 'calls') {
-        renderCallHistoryList();
+        renderCallHistoryList(true);
       }
-    });
-    socket.on('call:ended', () => {
-      if (currentFilter === 'calls') {
-        renderCallHistoryList();
+      loadConversations();
+      if (activeConversation) {
+        loadMessages(activeConversation._id);
       }
-    });
+    };
+
+    socket.on('call:history_updated', syncCallStateAcrossApp);
+    socket.on('call:ended', syncCallStateAcrossApp);
+    socket.on('call:rejected', syncCallStateAcrossApp);
+    window.addEventListener('chatin:call_ended', syncCallStateAcrossApp);
   }
+
+  // Periodic background sync for calls tab (ensures 100% sync even in serverless Vercel)
+  let callsAutoSyncTimer = null;
+  function ensureCallsAutoSync() {
+    if (!callsAutoSyncTimer) {
+      callsAutoSyncTimer = setInterval(() => {
+        if (currentFilter === 'calls' && !document.hidden) {
+          renderCallHistoryList(true);
+        }
+      }, 3500);
+    }
+  }
+  ensureCallsAutoSync();
 
   // 2. Fetch and Render Conversations (WhatsApp style: silent background sync without loading flash)
   async function loadConversations() {
@@ -320,56 +337,61 @@ document.addEventListener('DOMContentLoaded', () => {
     return c.conversationType === 'group' || Boolean(c.isGroup);
   }
 
-  async function renderCallHistoryList() {
+  async function renderCallHistoryList(isSilent = false) {
     if (!conversationsList) return;
-    conversationsList.innerHTML = `
-      <div class="calls-header-bar">
-        <div class="d-flex align-items-center gap-1">
-          <button class="btn btn-sm ${callHistoryFilter === 'all' ? 'btn-success fw-bold' : 'btn-outline-secondary'} rounded-pill py-0 px-2 extra-small" id="callFilterAllBtn">All</button>
-          <button class="btn btn-sm ${callHistoryFilter === 'missed' ? 'btn-danger fw-bold' : 'btn-outline-secondary'} rounded-pill py-0 px-2 extra-small" id="callFilterMissedBtn">Missed</button>
-        </div>
-        <div class="d-flex align-items-center gap-1">
-          <button class="btn btn-sm btn-outline-success rounded-pill py-0 px-2 extra-small fw-semibold" id="newCallHistoryBtn" title="Start a new call">
-            <i class="bi bi-telephone-plus me-1"></i>New Call
-          </button>
-          <button class="btn btn-sm btn-link text-muted text-decoration-none extra-small" id="clearCallHistoryBtn" title="Clear call history">
-            <i class="bi bi-trash3"></i>
-          </button>
-        </div>
-      </div>
-      <div class="text-center text-muted small py-4" id="callsLoadingSpinner">
-        <div class="spinner-border spinner-border-sm text-secondary mb-2" role="status"></div>
-        <div>Loading call history...</div>
-      </div>
-    `;
 
-    document.getElementById('callFilterAllBtn')?.addEventListener('click', () => {
-      callHistoryFilter = 'all';
-      renderCallHistoryList();
-    });
-    document.getElementById('callFilterMissedBtn')?.addEventListener('click', () => {
-      callHistoryFilter = 'missed';
-      renderCallHistoryList();
-    });
-    document.getElementById('newCallHistoryBtn')?.addEventListener('click', () => {
-      document.getElementById('openNewChatBtn')?.click();
-    });
-    document.getElementById('clearCallHistoryBtn')?.addEventListener('click', async () => {
-      if (!confirm('Clear your call log?')) return;
-      try {
-        await fetch('/api/calls/history/all', {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-        });
+    if (!isSilent || !document.getElementById('callsListContainer')) {
+      conversationsList.innerHTML = `
+        <div class="calls-header-bar">
+          <div class="d-flex align-items-center gap-1">
+            <button class="btn btn-sm ${callHistoryFilter === 'all' ? 'btn-success fw-bold' : 'btn-outline-secondary'} rounded-pill py-0 px-2 extra-small" id="callFilterAllBtn">All</button>
+            <button class="btn btn-sm ${callHistoryFilter === 'missed' ? 'btn-danger fw-bold' : 'btn-outline-secondary'} rounded-pill py-0 px-2 extra-small" id="callFilterMissedBtn">Missed</button>
+          </div>
+          <div class="d-flex align-items-center gap-1">
+            <button class="btn btn-sm btn-outline-success rounded-pill py-0 px-2 extra-small fw-semibold" id="newCallHistoryBtn" title="Start a new call">
+              <i class="bi bi-telephone-plus me-1"></i>New Call
+            </button>
+            <button class="btn btn-sm btn-link text-muted text-decoration-none extra-small" id="clearCallHistoryBtn" title="Clear call history">
+              <i class="bi bi-trash3"></i>
+            </button>
+          </div>
+        </div>
+        <div class="text-center text-muted small py-4" id="callsLoadingSpinner">
+          <div class="spinner-border spinner-border-sm text-secondary mb-2" role="status"></div>
+          <div>Loading call history...</div>
+        </div>
+        <div id="callsListContainer"></div>
+      `;
+
+      document.getElementById('callFilterAllBtn')?.addEventListener('click', () => {
+        callHistoryFilter = 'all';
         renderCallHistoryList();
-      } catch (e) {
-        console.error('Failed to clear calls:', e);
-      }
-    });
+      });
+      document.getElementById('callFilterMissedBtn')?.addEventListener('click', () => {
+        callHistoryFilter = 'missed';
+        renderCallHistoryList();
+      });
+      document.getElementById('newCallHistoryBtn')?.addEventListener('click', () => {
+        document.getElementById('openNewChatBtn')?.click();
+      });
+      document.getElementById('clearCallHistoryBtn')?.addEventListener('click', async () => {
+        if (!confirm('Clear your call log?')) return;
+        try {
+          await fetch('/api/calls/history/all', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+          });
+          renderCallHistoryList();
+        } catch (e) {
+          console.error('Failed to clear calls:', e);
+        }
+      });
+    }
 
     try {
-      const res = await fetch(`/api/calls/history?filter=${callHistoryFilter}`, {
+      const res = await fetch(`/api/calls/history?filter=${callHistoryFilter}&_t=${Date.now()}`, {
         headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
       });
       const json = await res.json();
       const calls = json.success && Array.isArray(json.data) ? json.data : [];
@@ -381,6 +403,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const spinner = document.getElementById('callsLoadingSpinner');
       if (spinner) spinner.remove();
+
+      const listContainer = document.getElementById('callsListContainer') || conversationsList;
+      listContainer.innerHTML = '';
 
       if (filteredCalls.length === 0) {
         const emptyDiv = document.createElement('div');
@@ -399,7 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <i class="bi bi-telephone-plus me-1"></i> Start a Call
           </button>
         `;
-        conversationsList.appendChild(emptyDiv);
+        listContainer.appendChild(emptyDiv);
         return;
       }
 
@@ -517,7 +542,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         });
 
-        conversationsList.appendChild(item);
+        listContainer.appendChild(item);
       });
     } catch (err) {
       console.error('Error fetching call history:', err);
@@ -592,7 +617,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
           window.scrollToMessage(st.id);
         });
-        conversationsList.appendChild(item);
+        listContainer.appendChild(item);
       });
       return;
     }

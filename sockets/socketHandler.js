@@ -236,21 +236,13 @@ const registerSocketHandlers = (io) => {
     // 10. WebRTC Audio & Video Calling Signaling
     socket.on('call:initiate', (data) => {
       try {
-        const { targetUserId, conversationId, callType, offer } = data || {};
+        const { targetUserId, conversationId, callType, offer, callId } = data || {};
         if (!targetUserId) return;
 
-        const targetOnline = onlineUsers.has(targetUserId) && onlineUsers.get(targetUserId).size > 0;
-        if (!targetOnline) {
-          socket.emit('call:rejected', {
-            targetUserId,
-            reason: 'offline',
-            message: 'User is currently offline',
-          });
-          return;
-        }
-
+        // If target user is already on an active call on this instance, notify busy
         if (activeCalls.has(targetUserId)) {
           socket.emit('call:rejected', {
+            callId: callId || null,
             targetUserId,
             reason: 'busy',
             message: 'User is on another call',
@@ -259,10 +251,11 @@ const registerSocketHandlers = (io) => {
         }
 
         io.to(`user:${targetUserId}`).emit('call:incoming', {
+          callId: callId || null,
           caller: {
             _id: userId,
             username: socket.user.username,
-            profilePicture: socket.user.profilePicture,
+            profilePicture: socket.user.profilePicture || '',
           },
           targetUserId,
           conversationId,
@@ -274,15 +267,27 @@ const registerSocketHandlers = (io) => {
       }
     });
 
-    socket.on('call:accept', (data) => {
+    socket.on('call:accept', async (data) => {
       try {
-        const { callerId, answer, callType } = data || {};
+        const { callerId, answer, callType, callId } = data || {};
         if (!callerId) return;
 
         activeCalls.set(userId, { peerId: callerId, callType });
         activeCalls.set(callerId, { peerId: userId, callType });
 
+        if (callId) {
+          try {
+            const Call = require('../models/Call');
+            await Call.findByIdAndUpdate(callId, {
+              status: 'accepted',
+              acceptedAt: new Date(),
+              answer,
+            });
+          } catch (e) {}
+        }
+
         io.to(`user:${callerId}`).emit('call:accepted', {
+          callId: callId || null,
           targetUserId: userId,
           targetUser: {
             _id: userId,
@@ -297,14 +302,27 @@ const registerSocketHandlers = (io) => {
       }
     });
 
-    socket.on('call:reject', (data) => {
+    socket.on('call:reject', async (data) => {
       try {
-        const { callerId, reason } = data || {};
+        const { callerId, reason, callId } = data || {};
         if (!callerId) return;
         activeCalls.delete(userId);
         activeCalls.delete(callerId);
 
+        if (callId) {
+          try {
+            const Call = require('../models/Call');
+            await Call.findByIdAndUpdate(callId, {
+              status: 'rejected',
+              rejectReason: reason || 'declined',
+              endedAt: new Date(),
+              duration: 0,
+            });
+          } catch (e) {}
+        }
+
         io.to(`user:${callerId}`).emit('call:rejected', {
+          callId: callId || null,
           targetUserId: userId,
           reason: reason || 'declined',
         });
@@ -317,10 +335,11 @@ const registerSocketHandlers = (io) => {
 
     socket.on('call:ice_candidate', (data) => {
       try {
-        const { targetUserId, candidate } = data || {};
+        const { targetUserId, candidate, callId } = data || {};
         if (!targetUserId || !candidate) return;
 
         io.to(`user:${targetUserId}`).emit('call:ice_candidate', {
+          callId: callId || null,
           userId,
           candidate,
         });
@@ -329,18 +348,37 @@ const registerSocketHandlers = (io) => {
       }
     });
 
-    socket.on('call:end', (data) => {
+    socket.on('call:end', async (data) => {
       try {
-        const { targetUserId } = data || {};
+        const { targetUserId, callId } = data || {};
         activeCalls.delete(userId);
         if (targetUserId) {
           activeCalls.delete(targetUserId);
           io.to(`user:${targetUserId}`).emit('call:ended', {
+            callId: callId || null,
             userId,
           });
           io.to(`user:${targetUserId}`).emit('call:history_updated');
         }
         io.to(`user:${userId}`).emit('call:history_updated');
+
+        if (callId) {
+          try {
+            const Call = require('../models/Call');
+            const call = await Call.findById(callId);
+            if (call && call.status !== 'ended') {
+              const wasAccepted = call.status === 'accepted' || Boolean(call.acceptedAt);
+              call.status = 'ended';
+              call.endedAt = new Date();
+              if (wasAccepted && call.acceptedAt) {
+                call.duration = Math.max(0, Math.round((call.endedAt.getTime() - new Date(call.acceptedAt).getTime()) / 1000));
+              } else {
+                call.duration = 0;
+              }
+              await call.save();
+            }
+          } catch (e) {}
+        }
       } catch (err) {
         console.error('Error in call:end:', err.message);
       }

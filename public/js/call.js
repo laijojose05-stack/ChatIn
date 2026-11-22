@@ -21,6 +21,7 @@
   let callSyncInterval = null;
   let idlePollInterval = null;
   let knownCandidateSignatures = new Set();
+  let localCandidatesQueue = [];
 
   // Web Audio Tone Synthesizer
   let audioCtx = null;
@@ -304,6 +305,7 @@
 
     currentCall = null;
     pendingCandidates = [];
+    localCandidatesQueue = [];
     knownCandidateSignatures.clear();
     isMicMuted = false;
     isCamOff = false;
@@ -388,6 +390,7 @@
           socketInstance.emit('call:ice_candidate', {
             targetUserId,
             candidate: event.candidate,
+            callId: currentCall ? currentCall.callId : null,
           });
         }
         // Also persist via REST for serverless environments (Vercel)
@@ -397,6 +400,8 @@
             headers: getAuthHeaders(),
             body: JSON.stringify({ candidate: event.candidate }),
           }).catch(() => {});
+        } else {
+          localCandidatesQueue.push(event.candidate);
         }
       }
     };
@@ -621,6 +626,18 @@
           if (currentCall) {
             currentCall.callId = resData.data.callId;
             startCallSync(resData.data.callId);
+
+            // Flush any local ICE candidates that were gathered before callId was returned
+            if (localCandidatesQueue.length > 0) {
+              localCandidatesQueue.forEach((cand) => {
+                fetch(`/api/calls/candidate/${currentCall.callId}`, {
+                  method: 'POST',
+                  headers: getAuthHeaders(),
+                  body: JSON.stringify({ candidate: cand }),
+                }).catch(() => {});
+              });
+              localCandidatesQueue = [];
+            }
           }
         }
       } catch (err) {
@@ -649,6 +666,7 @@
       if (socketInstance && socketInstance.connected && currentCall.peer) {
         socketInstance.emit('call:end', {
           targetUserId: currentCall.peer._id,
+          callId: currentCall.callId,
         });
       }
       if (currentCall.callId) {
@@ -660,6 +678,7 @@
     }
     playEndTone();
     cleanupCall();
+    window.dispatchEvent(new CustomEvent('chatin:call_ended'));
   }
 
   function handleIncomingCall(data) {
@@ -667,10 +686,27 @@
     if (!caller) return;
 
     if (currentCall) {
+      // Check if this is the SAME call notification (deduplication)
+      const currentPeerId = currentCall.peer ? (currentCall.peer._id || currentCall.peer).toString() : '';
+      const incomingPeerId = (caller._id || caller).toString();
+      const isSamePeer = currentPeerId === incomingPeerId;
+      const isSameCallId = callId && currentCall.callId && currentCall.callId.toString() === callId.toString();
+
+      if (isSameCallId || (isSamePeer && !currentCall.callStartTime)) {
+        // It's the same incoming call! Just enrich with callId and ensure sync is running
+        if (callId && !currentCall.callId) {
+          currentCall.callId = callId;
+          startCallSync(callId);
+        }
+        return;
+      }
+
+      // Truly busy on another call
       if (socketInstance && socketInstance.connected) {
         socketInstance.emit('call:reject', {
           callerId: caller._id,
           reason: 'busy',
+          callId: callId || null,
         });
       }
       if (callId) {
@@ -691,6 +727,12 @@
       isCaller: false,
       offer,
     };
+
+    // If callId is available, start sync immediately on receiver side
+    // so if caller cancels before answer, receiver's modal cancels in real time!
+    if (callId) {
+      startCallSync(callId);
+    }
 
     const callerName = caller.username || 'Someone';
     if (dom.incomingCallerName) dom.incomingCallerName.textContent = callerName;
@@ -755,6 +797,7 @@
           callerId: peerId,
           answer,
           callType,
+          callId: callId || null,
         });
       }
 
@@ -786,6 +829,7 @@
         socketInstance.emit('call:reject', {
           callerId: currentCall.peer._id,
           reason: 'declined',
+          callId: currentCall.callId || null,
         });
       }
       if (currentCall.callId) {
@@ -798,6 +842,7 @@
     }
     playEndTone();
     cleanupCall();
+    window.dispatchEvent(new CustomEvent('chatin:call_ended'));
   }
 
   async function handleCallAccepted(data) {
@@ -822,6 +867,7 @@
       console.error('Error handling call acceptance:', err);
       showCallToast('Failed to establish peer connection.');
       cleanupCall();
+      window.dispatchEvent(new CustomEvent('chatin:call_ended'));
     }
   }
 
@@ -839,6 +885,7 @@
 
     playEndTone();
     cleanupCall();
+    window.dispatchEvent(new CustomEvent('chatin:call_ended'));
   }
 
   async function handleRemoteIceCandidate(data) {
@@ -858,6 +905,7 @@
     showCallToast('Call ended');
     playEndTone();
     cleanupCall();
+    window.dispatchEvent(new CustomEvent('chatin:call_ended'));
   }
 
   function showActiveCallView(peer, callType) {
@@ -905,6 +953,7 @@
       if (socketInstance && socketInstance.connected && currentCall.peer) {
         socketInstance.emit('call:end', {
           targetUserId: currentCall.peer._id,
+          callId: currentCall.callId || null,
         });
       }
       if (currentCall.callId) {
@@ -917,6 +966,7 @@
     playEndTone();
     showCallToast('Call ended');
     cleanupCall();
+    window.dispatchEvent(new CustomEvent('chatin:call_ended'));
   }
 
   function toggleMicrophone() {

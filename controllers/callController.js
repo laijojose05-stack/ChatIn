@@ -213,7 +213,16 @@ exports.rejectCall = async (req, res) => {
             deliveredTo: [{ user: call.caller, deliveredAt: new Date() }],
           });
           if (io) {
-            io.to(`conv:${call.conversation}`).emit('receive_message', sysMsg);
+            const payload = {
+              conversationId: call.conversation,
+              message: sysMsg,
+            };
+            io.to(`conv:${call.conversation}`).emit('receive_message', payload);
+            io.to(`conv:${call.conversation}`).emit('new_message', sysMsg);
+            io.to(`user:${call.caller}`).emit('receive_message', payload);
+            io.to(`user:${call.caller}`).emit('new_message', sysMsg);
+            io.to(`user:${call.receiver}`).emit('receive_message', payload);
+            io.to(`user:${call.receiver}`).emit('new_message', sysMsg);
           }
         } catch (e) {}
       }
@@ -328,7 +337,16 @@ exports.endCall = async (req, res) => {
             deliveredTo: [{ user: call.caller, deliveredAt: new Date() }],
           });
           if (io) {
-            io.to(`conv:${call.conversation}`).emit('receive_message', sysMsg);
+            const payload = {
+              conversationId: call.conversation,
+              message: sysMsg,
+            };
+            io.to(`conv:${call.conversation}`).emit('receive_message', payload);
+            io.to(`conv:${call.conversation}`).emit('new_message', sysMsg);
+            io.to(`user:${call.caller}`).emit('receive_message', payload);
+            io.to(`user:${call.caller}`).emit('new_message', sysMsg);
+            io.to(`user:${call.receiver}`).emit('receive_message', payload);
+            io.to(`user:${call.receiver}`).emit('new_message', sysMsg);
           }
         } catch (e) {}
       }
