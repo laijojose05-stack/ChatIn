@@ -25,10 +25,22 @@ exports.initiateCall = async (req, res) => {
       { status: 'ended', endedAt: new Date() }
     );
 
+    let resolvedConvId = conversationId || null;
+    if (!resolvedConvId) {
+      try {
+        const Conversation = require('../models/Conversation');
+        const conv = await Conversation.findOne({
+          isGroup: false,
+          participants: { $all: [callerId, targetUserId] },
+        });
+        if (conv) resolvedConvId = conv._id;
+      } catch (e) {}
+    }
+
     const newCall = await Call.create({
       caller: callerId,
       receiver: targetUserId,
-      conversation: conversationId || null,
+      conversation: resolvedConvId,
       callType: callType || 'video',
       status: 'calling',
       offer,
@@ -127,6 +139,7 @@ exports.acceptCall = async (req, res) => {
 
     call.status = 'accepted';
     call.answer = answer;
+    call.acceptedAt = new Date();
     await call.save();
 
     const io = req.app.get('io');
@@ -173,6 +186,20 @@ exports.rejectCall = async (req, res) => {
       }
 
       // Record system missed call message in conversation if applicable
+      if (!call.conversation) {
+        try {
+          const Conversation = require('../models/Conversation');
+          const conv = await Conversation.findOne({
+            isGroup: false,
+            participants: { $all: [call.caller, call.receiver] },
+          });
+          if (conv) {
+            call.conversation = conv._id;
+            await call.save();
+          }
+        } catch (e) {}
+      }
+
       if (call.conversation) {
         try {
           const Message = require('../models/Message');
@@ -241,10 +268,16 @@ exports.endCall = async (req, res) => {
 
     const call = await Call.findById(callId);
     if (call) {
+      const wasAccepted = call.status === 'accepted' || Boolean(call.acceptedAt);
       call.status = 'ended';
       call.endedAt = new Date();
-      if (call.createdAt) {
-        call.duration = Math.max(0, Math.round((call.endedAt.getTime() - new Date(call.createdAt).getTime()) / 1000));
+      if (wasAccepted && call.acceptedAt) {
+        call.duration = Math.max(0, Math.round((call.endedAt.getTime() - new Date(call.acceptedAt).getTime()) / 1000));
+      } else {
+        call.duration = 0;
+        if (!call.rejectReason) {
+          call.rejectReason = 'unanswered';
+        }
       }
       await call.save();
 
@@ -260,16 +293,36 @@ exports.endCall = async (req, res) => {
       }
 
       // Record system call message in conversation
+      if (!call.conversation) {
+        try {
+          const Conversation = require('../models/Conversation');
+          const conv = await Conversation.findOne({
+            isGroup: false,
+            participants: { $all: [call.caller, call.receiver] },
+          });
+          if (conv) {
+            call.conversation = conv._id;
+            await call.save();
+          }
+        } catch (e) {}
+      }
+
       if (call.conversation) {
         try {
           const Message = require('../models/Message');
           const isVideo = call.callType === 'video';
           const dur = call.duration || 0;
-          const durStr = dur > 0 ? `${Math.floor(dur / 60)}m ${dur % 60}s` : 'Call ended';
+          let msgContent = '';
+          if (wasAccepted && dur > 0) {
+            const durStr = `${Math.floor(dur / 60)}m ${dur % 60}s`;
+            msgContent = `${isVideo ? '📹 Video call' : '📞 Voice call'} • ${durStr}`;
+          } else {
+            msgContent = `${isVideo ? '📹 Missed video call' : '📞 Missed voice call'}`;
+          }
           const sysMsg = await Message.create({
             conversationId: call.conversation,
             senderId: call.caller,
-            content: `${isVideo ? '📹 Video call' : '📞 Voice call'} • ${durStr}`,
+            content: msgContent,
             messageType: 'system',
             readBy: [{ user: call.caller, readAt: new Date() }],
             deliveredTo: [{ user: call.caller, deliveredAt: new Date() }],

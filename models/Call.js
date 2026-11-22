@@ -52,6 +52,10 @@ const callSchema = new mongoose.Schema(
         type: mongoose.Schema.Types.Mixed,
       },
     ],
+    acceptedAt: {
+      type: Date,
+      default: null,
+    },
     endedAt: {
       type: Date,
       default: null,

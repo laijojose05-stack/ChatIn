@@ -289,7 +289,38 @@ async function runTests() {
     await Call.deleteOne({ _id: testCallDoc._id });
     console.log('   ✅ REST/DB calling session lifecycle validated');
 
-    console.log('\n🎉 ALL 13 TESTS PASSED! ChatIn Single-Directory Node App is 100% operational, spam-protected, and equipped with Audio & Video Calling (WebRTC + Serverless Fallback).\n');
+    // 14. Testing Call History & Accurate Call Duration Recording
+    console.log('14. Testing Call History & Duration Computation...');
+    const callController = require('./controllers/callController');
+    const pastStart = new Date(Date.now() - 75000);
+    const histCallDoc = await Call.create({
+      caller: testCallerId,
+      receiver: testCalleeId,
+      callType: 'audio',
+      status: 'accepted',
+      acceptedAt: pastStart,
+      offer: { type: 'offer', sdp: 'history-test' },
+    });
+
+    const mockEndReq = {
+      params: { callId: histCallDoc._id.toString() },
+      user: { _id: testCallerId },
+      app: { get: () => null },
+    };
+    const mockEndRes = {
+      status: () => ({ json: () => {} }),
+    };
+
+    await callController.endCall(mockEndReq, mockEndRes);
+    const updatedCall = await Call.findById(histCallDoc._id);
+    if (!updatedCall || updatedCall.duration < 70 || updatedCall.status !== 'ended') {
+      throw new Error(`Call duration computation failed: got ${updatedCall?.duration}s`);
+    }
+
+    await Call.deleteOne({ _id: histCallDoc._id });
+    console.log(`   ✅ Accurate call duration computed (${updatedCall.duration}s) and recorded in Call History`);
+
+    console.log('\n🎉 ALL 14 TESTS PASSED! ChatIn Single-Directory Node App is 100% operational, spam-protected, and equipped with Audio & Video Calling (WebRTC + Serverless Fallback).\n');
     process.exit(0);
   } catch (err) {
     console.error('❌ Test failed:', err.message);

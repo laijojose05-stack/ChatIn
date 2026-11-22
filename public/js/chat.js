@@ -485,7 +485,7 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         });
 
-        item.addEventListener('click', () => {
+        item.addEventListener('click', async () => {
           if (call.conversationId) {
             const targetConv = conversations.find((c) => c._id === call.conversationId);
             if (targetConv) {
@@ -494,13 +494,26 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           }
           if (call.peer && call.peer._id) {
-            const targetConv = conversations.find((c) => {
+            let targetConv = conversations.find((c) => {
               if (isGroupConv(c)) return false;
               return (c.participants || []).some((p) => (p._id || p).toString() === call.peer._id.toString());
             });
             if (targetConv) {
               selectConversation(targetConv);
+              return;
             }
+            try {
+              const res = await fetch('/api/conversations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ recipientId: call.peer._id }),
+              });
+              const data = await res.json();
+              if (data.success && data.data) {
+                conversations.unshift(data.data);
+                selectConversation(data.data);
+              }
+            } catch (e) {}
           }
         });
 
