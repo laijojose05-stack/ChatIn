@@ -3494,8 +3494,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const resetMobileSettingsView = () => {
     if (settingsModalBody) settingsModalBody.classList.remove('mobile-in-detail');
     if (settingsMobileBackBtn) settingsMobileBackBtn.classList.add('d-none');
+    const settingsHeaderIconBox = document.getElementById('settingsHeaderIconBox');
+    if (settingsHeaderIconBox) settingsHeaderIconBox.classList.remove('d-none');
     if (settingsModalLabel) settingsModalLabel.textContent = 'Settings';
     if (settingsModalSub) settingsModalSub.textContent = 'Manage your account and preferences';
+    if (window.innerWidth <= 768) {
+      settingsNavButtons.forEach((b) => b.classList.remove('active'));
+    }
   };
 
   if (settingsMobileBackBtn) {
@@ -3527,9 +3532,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (window.innerWidth <= 768) {
         if (settingsModalBody) settingsModalBody.classList.add('mobile-in-detail');
         if (settingsMobileBackBtn) settingsMobileBackBtn.classList.remove('d-none');
+        const settingsHeaderIconBox = document.getElementById('settingsHeaderIconBox');
+        if (settingsHeaderIconBox) settingsHeaderIconBox.classList.add('d-none');
         const title = btn.getAttribute('data-settings-title') || btn.querySelector('span')?.textContent || 'Settings';
         if (settingsModalLabel) settingsModalLabel.textContent = title;
         if (settingsModalSub) settingsModalSub.textContent = 'Tap ‹ Settings to return';
+        const contentPane = document.querySelector('.settings-content-pane');
+        if (contentPane) contentPane.scrollTop = 0;
       }
     });
   });

@@ -1080,7 +1080,7 @@
 }
 
 /* ==========================================================================
-   4. Settings Center (Neumorphic Master-Detail Suite)
+   4. Settings Center (Neumorphic Master-Detail Suite & Mobile Drilldown)
    ========================================================================== */
 .settings-modal-dialog {
   max-width: 960px;
@@ -1102,6 +1102,7 @@
   height: 100%;
   overflow: hidden;
   padding: 0;
+  position: relative;
 }
 
 .settings-sidebar-nav {
@@ -1117,7 +1118,7 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.65rem 0.95rem;
+  padding: 0.7rem 0.95rem;
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   font-weight: 600;
@@ -1145,18 +1146,6 @@
   border-color: var(--neu-border) !important;
 }
 
-.settings-nav-item:hover {
-  background: var(--bg-card-hover);
-  color: var(--text-primary);
-  transform: translateX(2px);
-}
-
-.settings-nav-item.active {
-  background: var(--accent-gradient);
-  color: #ffffff;
-  box-shadow: 0 4px 12px var(--accent-glow);
-}
-
 .settings-content-pane {
   flex-grow: 1;
   overflow-y: auto;
@@ -1164,24 +1153,224 @@
   background: var(--bg-chat);
 }
 
-/* Settings Theme Selector Cards */
-.theme-selector-card {
-  border: 2px solid var(--border-color);
+/* Settings Components & Cards */
+.settings-card {
+  background: var(--neu-flat);
+  border: 1px solid var(--neu-border);
   border-radius: var(--radius-lg);
-  padding: 1rem;
+  box-shadow: var(--neu-raised-sm);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.settings-profile-banner {
+  height: 80px;
+  background: linear-gradient(135deg, #10b981 0%, #06b6d4 50%, #6366f1 100%);
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+  position: relative;
+}
+
+.settings-avatar-holder {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  border: 3px solid var(--neu-flat);
+  background: var(--neu-flat);
+  box-shadow: var(--neu-raised);
+  margin-top: -36px;
+  overflow: hidden;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.settings-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
   cursor: pointer;
-  transition: all var(--transition-normal);
-  background: var(--bg-card);
 }
 
-.theme-selector-card:hover {
-  border-color: var(--accent-primary);
-  transform: translateY(-2px);
+.settings-avatar-holder:hover .settings-avatar-overlay {
+  opacity: 1;
 }
 
-.theme-selector-card.active {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+.settings-mobile-profile-hero {
+  background: var(--neu-flat);
+  border: 1px solid var(--neu-border);
+  box-shadow: var(--neu-raised-sm);
+  transition: all var(--transition-fast);
+}
+
+.settings-mobile-profile-hero:hover,
+.settings-mobile-profile-hero:active {
+  box-shadow: var(--neu-inset-sm);
+  transform: scale(0.99);
+}
+
+.theme-card-option {
+  background: var(--neu-flat);
+  border: 2px solid var(--neu-border);
+  border-radius: var(--radius-md);
+  padding: 0.85rem;
+  cursor: pointer;
+  box-shadow: var(--neu-raised-sm);
+  transition: all var(--transition-fast);
+}
+
+.theme-card-option:hover {
+  box-shadow: var(--neu-raised);
+  transform: translateY(-1px);
+}
+
+.theme-card-option.active {
+  border-color: var(--accent-primary) !important;
+  box-shadow: var(--neu-inset-sm) !important;
+}
+
+.theme-card-preview {
+  height: 70px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 0.75rem;
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--neu-border);
+}
+
+.preview-sidebar {
+  width: 25%;
+  height: 100%;
+}
+
+.preview-body {
+  flex-grow: 1;
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.preview-bar {
+  height: 6px;
+  border-radius: 3px;
+}
+
+.accent-color-pill {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all var(--transition-fast);
+  box-shadow: var(--neu-raised-sm);
+}
+
+.accent-color-pill:hover {
+  transform: scale(1.1);
+}
+
+.accent-color-pill.active {
+  transform: scale(1.15);
+  border-color: var(--text-primary);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.keycap-badge {
+  background: var(--neu-flat);
+  border: 1px solid var(--neu-border);
+  box-shadow: var(--neu-raised-sm);
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--text-primary);
+  display: inline-block;
+}
+
+/* ==========================================================================
+   Mobile Settings Viewport & Native Drilldown (< 768px)
+   ========================================================================== */
+@media (max-width: 767.98px) {
+  .settings-modal-dialog {
+    margin: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100% !important;
+    height: 100dvh !important;
+    min-height: 100% !important;
+  }
+
+  .settings-modal-dialog .modal-content {
+    height: 100% !important;
+    height: 100dvh !important;
+    max-height: 100% !important;
+    border-radius: 0 !important;
+    border: none !important;
+  }
+
+  .settings-modal-body {
+    display: block !important;
+    height: calc(100% - 56px);
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Root Menu Screen on Mobile */
+  .settings-modal-body .settings-sidebar-nav {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-right: none !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    padding: 1rem 0.85rem !important;
+    display: block !important;
+  }
+
+  .settings-modal-body .settings-content-pane {
+    display: none !important;
+  }
+
+  .settings-nav-item {
+    padding: 0.85rem 1rem !important;
+    font-size: 0.95rem !important;
+    margin-bottom: 6px !important;
+    border-radius: var(--radius-lg) !important;
+  }
+
+  /* Drilled-Down Detail Screen on Mobile (.mobile-in-detail) */
+  .settings-modal-body.mobile-in-detail .settings-sidebar-nav {
+    display: none !important;
+  }
+
+  .settings-modal-body.mobile-in-detail .settings-content-pane {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    padding: 1rem 0.85rem 2.5rem 0.85rem !important;
+  }
+
+  .settings-card {
+    padding: 1rem !important;
+    border-radius: var(--radius-md) !important;
+    margin-bottom: 0.85rem !important;
+  }
+
+  .settings-profile-banner {
+    height: 60px !important;
+  }
+
+  .settings-avatar-holder {
+    width: 58px !important;
+    height: 58px !important;
+    margin-top: -29px !important;
+  }
 }
 
 /* ==========================================================================
