@@ -5,26 +5,26 @@
 :root {
   --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
-  --radius-xs: 8px;
-  --radius-sm: 12px;
-  --radius-md: 16px;
-  --radius-lg: 22px;
-  --radius-xl: 30px;
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
   --radius-pill: 9999px;
 
-  /* Vibrant Neumorphic Accent Tokens */
-  --accent-primary: #00b894;
-  --accent-secondary: #00cec9;
-  --accent-hover: #00d2aa;
-  --accent-active: #00a383;
-  --accent-gradient: linear-gradient(135deg, #00b894 0%, #0984e3 100%);
-  --accent-glow: rgba(0, 184, 148, 0.35);
+  /* Authentic WhatsApp Design Tokens */
+  --accent-primary: #00a884;
+  --accent-secondary: #25d366;
+  --accent-hover: #06cf9c;
+  --accent-active: #008069;
+  --accent-gradient: linear-gradient(135deg, #00a884 0%, #25d366 100%);
+  --accent-glow: rgba(0, 168, 132, 0.35);
 
-  --status-online: #00b894;
+  --status-online: #25d366;
   --status-offline: #8696a0;
-  --status-warning: #f39c12;
-  --status-danger: #e74c3c;
-  --status-read-ticks: #0984e3;
+  --status-warning: #f59e0b;
+  --status-danger: #ea0038;
+  --status-read-ticks: #53bdeb;
 
   --transition-fast: 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   --transition-normal: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -32,126 +32,130 @@
 }
 
 /* ==========================================================================
-   1. NEUMORPHIC DARK THEME (Soft Charcoal Slate UI)
+   1. WHATSAPP WEB DARK THEME (Official AMOLED / Charcoal #111b21)
    ========================================================================== */
 [data-theme="dark"],
 [data-bs-theme="dark"] {
-  --bg-app: #20242c;
-  --bg-sidebar: #20242c;
-  --bg-sidebar-glass: #20242c;
-  --bg-chat: #20242c;
-  --bg-card: #20242c;
-  --bg-card-hover: #242932;
-  --bg-card-active: #1c2027;
-  --bg-input: #20242c;
-  --bg-input-focus: #1c2027;
-  --bg-floating: #20242c;
+  --bg-app: #111b21;
+  --bg-sidebar: #111b21;
+  --bg-sidebar-header: #202c33;
+  --bg-sidebar-glass: #111b21;
+  --bg-chat: #0b141a;
+  --bg-card: #202c33;
+  --bg-card-hover: #202c33;
+  --bg-card-active: #2a3942;
+  --bg-input: #202c33;
+  --bg-input-field: #2a3942;
+  --bg-input-focus: #2a3942;
+  --bg-floating: #202c33;
 
-  --border-color: rgba(255, 255, 255, 0.04);
-  --border-subtle: rgba(255, 255, 255, 0.02);
-  --border-focus: #00b894;
+  --border-color: #222d34;
+  --border-subtle: rgba(134, 150, 160, 0.15);
+  --border-focus: #00a884;
 
-  --text-primary: #e8edf4;
-  --text-secondary: #96a2b4;
-  --text-muted: #687487;
-  --text-inverse: #20242c;
+  --text-primary: #e9edef;
+  --text-secondary: #8696a0;
+  --text-muted: #667781;
+  --text-inverse: #111b21;
 
-  /* Neumorphic Dual Shadows (Dark) */
-  --neu-flat: #20242c;
-  --neu-raised: 6px 6px 14px #15181e, -6px -6px 14px #2b303a;
-  --neu-raised-sm: 3px 3px 8px #15181e, -3px -3px 8px #2b303a;
-  --neu-raised-lg: 12px 12px 28px #13151b, -12px -12px 28px #2d333d;
-  --neu-inset: inset 3px 3px 7px #15181e, inset -3px -3px 7px #2b303a;
-  --neu-inset-sm: inset 2px 2px 4px #15181e, inset -2px -2px 4px #2b303a;
-  --neu-convex: linear-gradient(145deg, #22272f, #1e2128);
-  --neu-concave: linear-gradient(145deg, #1e2128, #22272f);
-  --neu-border: rgba(255, 255, 255, 0.04);
+  /* WhatsApp Soft Shadows & Panels */
+  --neu-flat: #202c33;
+  --neu-raised: 0 1px 3px rgba(0, 0, 0, 0.25);
+  --neu-raised-sm: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+  --neu-raised-lg: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --neu-inset: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  --neu-inset-sm: inset 0 1px 1px rgba(0, 0, 0, 0.15);
+  --neu-convex: #202c33;
+  --neu-concave: #111b21;
+  --neu-border: #222d34;
 
   /* Bootstrap 5 Overrides */
-  --bs-body-color: #e8edf4 !important;
-  --bs-body-bg: #20242c !important;
-  --bs-secondary-color: #96a2b4 !important;
-  --bs-secondary-color-rgb: 150, 162, 180 !important;
-  --bs-tertiary-color: #687487 !important;
-  --bs-tertiary-bg: #20242c !important;
-  --bs-border-color: rgba(255, 255, 255, 0.04) !important;
-  --bs-border-color-translucent: rgba(255, 255, 255, 0.03) !important;
+  --bs-body-color: #e9edef !important;
+  --bs-body-bg: #111b21 !important;
+  --bs-secondary-color: #8696a0 !important;
+  --bs-secondary-color-rgb: 134, 150, 160 !important;
+  --bs-tertiary-color: #667781 !important;
+  --bs-tertiary-bg: #202c33 !important;
+  --bs-border-color: #222d34 !important;
+  --bs-border-color-translucent: rgba(134, 150, 160, 0.15) !important;
   --bs-emphasis-color: #ffffff !important;
 
-  /* Neumorphic Message Bubbles */
-  --bubble-sent: linear-gradient(145deg, #15382e, #102d25);
-  --bubble-sent-gradient: linear-gradient(145deg, #15382e 0%, #102d25 100%);
-  --bubble-sent-text: #e8edf4;
-  --bubble-received: #20242c;
-  --bubble-received-text: #e8edf4;
-  --bubble-received-border: rgba(255, 255, 255, 0.04);
+  /* Authentic WhatsApp Message Bubbles */
+  --bubble-sent: #005c4b;
+  --bubble-sent-gradient: #005c4b;
+  --bubble-sent-text: #e9edef;
+  --bubble-received: #202c33;
+  --bubble-received-text: #e9edef;
+  --bubble-received-border: transparent;
 
-  --shadow-sm: var(--neu-raised-sm);
-  --shadow-md: var(--neu-raised);
-  --shadow-lg: var(--neu-raised-lg);
-  --shadow-glow: 0 0 24px rgba(0, 184, 148, 0.3);
+  --shadow-sm: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+  --shadow-md: 0 2px 5px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 6px 18px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 0 20px rgba(0, 168, 132, 0.3);
   --glass-filter: none;
 }
 
 /* ==========================================================================
-   2. NEUMORPHIC LIGHT THEME (Soft Ceramic Blue-Grey UI)
+   2. WHATSAPP WEB LIGHT THEME (Official Crisp WhatsApp #f0f2f5)
    ========================================================================== */
 [data-theme="light"],
 [data-bs-theme="light"] {
-  --bg-app: #e6ecf4;
-  --bg-sidebar: #e6ecf4;
-  --bg-sidebar-glass: #e6ecf4;
-  --bg-chat: #e6ecf4;
-  --bg-card: #e6ecf4;
-  --bg-card-hover: #ebf1f9;
-  --bg-card-active: #dce2eb;
-  --bg-input: #e6ecf4;
-  --bg-input-focus: #dce2eb;
-  --bg-floating: #e6ecf4;
+  --bg-app: #f0f2f5;
+  --bg-sidebar: #ffffff;
+  --bg-sidebar-header: #f0f2f5;
+  --bg-sidebar-glass: #ffffff;
+  --bg-chat: #efeae2;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f5f6f6;
+  --bg-card-active: #ebebeb;
+  --bg-input: #f0f2f5;
+  --bg-input-field: #ffffff;
+  --bg-input-focus: #ffffff;
+  --bg-floating: #ffffff;
 
-  --border-color: rgba(0, 0, 0, 0.04);
-  --border-subtle: rgba(0, 0, 0, 0.02);
-  --border-focus: #00b894;
+  --border-color: #e9edef;
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-focus: #00a884;
 
-  --text-primary: #232d3d;
-  --text-secondary: #5e6e82;
-  --text-muted: #8a99ad;
+  --text-primary: #111b21;
+  --text-secondary: #667781;
+  --text-muted: #8696a0;
   --text-inverse: #ffffff;
 
-  /* Neumorphic Dual Shadows (Light) */
-  --neu-flat: #e6ecf4;
-  --neu-raised: 6px 6px 14px #c2c9d4, -6px -6px 14px #ffffff;
-  --neu-raised-sm: 3px 3px 8px #c2c9d4, -3px -3px 8px #ffffff;
-  --neu-raised-lg: 12px 12px 28px #b6beca, -12px -12px 28px #ffffff;
-  --neu-inset: inset 3px 3px 7px #c2c9d4, inset -3px -3px 7px #ffffff;
-  --neu-inset-sm: inset 2px 2px 4px #c2c9d4, inset -2px -2px 4px #ffffff;
-  --neu-convex: linear-gradient(145deg, #f6fcff, #cfd4dc);
-  --neu-concave: linear-gradient(145deg, #cfd4dc, #f6fcff);
-  --neu-border: rgba(255, 255, 255, 0.6);
+  /* WhatsApp Soft Shadows & Panels */
+  --neu-flat: #ffffff;
+  --neu-raised: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --neu-raised-sm: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+  --neu-raised-lg: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --neu-inset: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+  --neu-inset-sm: inset 0 1px 1px rgba(0, 0, 0, 0.04);
+  --neu-convex: #ffffff;
+  --neu-concave: #f0f2f5;
+  --neu-border: #e9edef;
 
   /* Bootstrap 5 Overrides */
-  --bs-body-color: #232d3d !important;
-  --bs-body-bg: #e6ecf4 !important;
-  --bs-secondary-color: #5e6e82 !important;
-  --bs-secondary-color-rgb: 94, 110, 130 !important;
-  --bs-tertiary-color: #8a99ad !important;
-  --bs-tertiary-bg: #e6ecf4 !important;
-  --bs-border-color: rgba(0, 0, 0, 0.04) !important;
-  --bs-border-color-translucent: rgba(0, 0, 0, 0.03) !important;
-  --bs-emphasis-color: #232d3d !important;
+  --bs-body-color: #111b21 !important;
+  --bs-body-bg: #f0f2f5 !important;
+  --bs-secondary-color: #667781 !important;
+  --bs-secondary-color-rgb: 102, 119, 129 !important;
+  --bs-tertiary-color: #8696a0 !important;
+  --bs-tertiary-bg: #f0f2f5 !important;
+  --bs-border-color: #e9edef !important;
+  --bs-border-color-translucent: rgba(0, 0, 0, 0.08) !important;
+  --bs-emphasis-color: #111b21 !important;
 
-  /* Neumorphic Message Bubbles */
-  --bubble-sent: linear-gradient(145deg, #d3f6df, #beeecb);
-  --bubble-sent-gradient: linear-gradient(145deg, #d3f6df 0%, #beeecb 100%);
-  --bubble-sent-text: #14532d;
-  --bubble-received: #e6ecf4;
-  --bubble-received-text: #232d3d;
-  --bubble-received-border: rgba(255, 255, 255, 0.5);
+  /* Authentic WhatsApp Message Bubbles */
+  --bubble-sent: #d9fdd3;
+  --bubble-sent-gradient: #d9fdd3;
+  --bubble-sent-text: #111b21;
+  --bubble-received: #ffffff;
+  --bubble-received-text: #111b21;
+  --bubble-received-border: transparent;
 
-  --shadow-sm: var(--neu-raised-sm);
-  --shadow-md: var(--neu-raised);
-  --shadow-lg: var(--neu-raised-lg);
-  --shadow-glow: 0 0 20px rgba(0, 184, 148, 0.22);
+  --shadow-sm: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+  --shadow-md: 0 2px 5px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 6px 18px rgba(0, 0, 0, 0.12);
+  --shadow-glow: 0 0 18px rgba(0, 168, 132, 0.2);
   --glass-filter: none;
 }
 
